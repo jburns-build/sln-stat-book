@@ -1,0 +1,48 @@
+PUBLISH THE SLN STAT BOOK AS A LIVE, AUTO-UPDATING SITE
+=======================================================
+
+The repo is already initialized and committed locally. Do these one-time steps
+to get a public URL that refreshes itself a few times a day.
+
+1) CREATE AN EMPTY REPO ON GITHUB
+   - Go to https://github.com/new
+   - Name it e.g.  sln-stat-book
+   - Visibility: PUBLIC  (free GitHub Pages requires public; the data is already
+     public on simleaguenirvana.com)
+   - Do NOT add a README, .gitignore, or license (keep it empty)
+   - Click "Create repository"
+
+2) PUSH THIS FOLDER (copy-paste into Terminal)
+   cd "$HOME/Desktop/NDL Master Stats"
+   git remote add origin https://github.com/<YOUR-USERNAME>/sln-stat-book.git
+   git branch -M main
+   git push -u origin main
+   (The first push uploads ~85 MB of historical data — it's a one-time thing.)
+
+3) TURN ON GITHUB PAGES
+   - In the repo: Settings -> Pages
+   - Under "Build and deployment", set Source = "GitHub Actions"
+     (that's it — no branch to pick)
+
+4) RUN IT ONCE
+   - Go to the Actions tab -> "Update Stat Book" -> "Run workflow"
+   - After it finishes (~1-2 min), your live URL appears at Settings -> Pages,
+     e.g.  https://<YOUR-USERNAME>.github.io/sln-stat-book/
+   - Share THAT url with your friends. It updates automatically from then on.
+
+HOW IT STAYS FRESH
+------------------
+- A GitHub Action re-scrapes ONLY the live season and rebuilds the site every
+  4 hours (UTC), plus whenever you click "Run workflow".
+- Historical seasons come from the committed mirror/ folder (they never change),
+  so each run makes ~29 polite requests, not thousands.
+
+GOOD TO KNOW
+------------
+- Scheduled runs pause after ~60 days of no repo activity; a manual "Run
+  workflow" (or any push) resumes them.
+- Cron times are UTC.
+- FUTURE: when the 2038 season ends and 2039 begins, the just-finished season
+  moves to the site's /history/38/ area. At that point the scraper needs one
+  small tweak to pull that newly-archived season into mirror/. Ping me and it's
+  a two-minute change.

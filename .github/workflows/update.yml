@@ -1,0 +1,51 @@
+name: Update Stat Book
+
+# Re-scrapes the LIVE season a few times a day, rebuilds, and publishes to
+# GitHub Pages. Historical seasons are read from the committed mirror/ (they
+# never change), so each run only fetches ~29 current-season pages.
+on:
+  schedule:
+    - cron: "0 */4 * * *"   # every 4 hours (UTC) = 6x/day
+  workflow_dispatch:          # lets you run it on demand from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Refresh live season and rebuild
+        run: |
+          python3 scripts/scrape_rosters_gap.py    # force-refreshes the live season
+          python3 scripts/scrape_awards.py
+          python3 scripts/scrape_playoffs.py
+          python3 scripts/build_players_dataset.py
+          python3 scripts/build_site.py
+      - name: Stage site
+        run: |
+          mkdir -p _site
+          cp out/ndl_stats.html _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
