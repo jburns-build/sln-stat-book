@@ -36,6 +36,7 @@ jobs:
         run: |
           mkdir -p _site
           cp out/ndl_stats.html _site/index.html
+          echo "slnstatbook.com" > _site/CNAME   # keep the custom domain on every deploy
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
