@@ -1,0 +1,57 @@
+ADD A "REFRESH NOW" BUTTON TO THE STAT BOOK
+============================================
+
+The button triggers an immediate rebuild (fresh stats in ~1 minute), on top of
+the automatic every-4-hours refresh. Because a public webpage can't safely hold
+a GitHub key, a tiny free Cloudflare Worker holds it and does the triggering.
+
+You'll do steps 1-4 (about 10 minutes, all in a web browser). Then paste the
+Worker URL back to Claude and it wires the button into the site.
+
+--------------------------------------------------------------------
+STEP 1 — Create the GitHub token the Worker will use
+--------------------------------------------------------------------
+- Go to: https://github.com/settings/tokens?type=beta   (Fine-grained tokens)
+- "Generate new token"
+    Name:             statbook-refresh
+    Expiration:       No expiration (or 1 year)
+    Repository access: "Only select repositories" -> sln-stat-book
+    Permissions -> Repository permissions -> Actions: set to "Read and write"
+- Generate, then COPY the token (starts with github_pat_...). You'll paste it in
+  step 3. Keep it private — treat it like a password.
+
+--------------------------------------------------------------------
+STEP 2 — Create a free Cloudflare Worker
+--------------------------------------------------------------------
+- Sign up (free): https://dash.cloudflare.com/sign-up
+- Left sidebar: "Workers & Pages" -> "Create" -> "Create Worker"
+    Name it:  statbook-refresh
+- Click "Deploy" (deploys the starter), then "Edit code"
+- Delete the starter code, paste ALL of worker/refresh-worker.js from this
+  folder, then click "Deploy" again.
+
+--------------------------------------------------------------------
+STEP 3 — Give the Worker the token (as a secret)
+--------------------------------------------------------------------
+- On the Worker's page: "Settings" -> "Variables and Secrets"
+- "Add" a variable:
+    Type:  Secret (encrypted)
+    Name:  GH_TOKEN
+    Value: <paste the github_pat_... token from step 1>
+- Save / Deploy.
+
+--------------------------------------------------------------------
+STEP 4 — Copy the Worker URL and send it to Claude
+--------------------------------------------------------------------
+- On the Worker's page, copy its URL. It looks like:
+    https://statbook-refresh.<your-subdomain>.workers.dev
+- Paste that URL to Claude. Claude adds the "Refresh now" button to the site,
+  pointing at your Worker. Done.
+
+--------------------------------------------------------------------
+NOTES
+--------------------------------------------------------------------
+- The Worker refuses to start a second build while one is already running, so
+  the button can't pile up jobs.
+- Cloudflare's free tier is far more than enough for this.
+- If you ever rotate the GitHub token, just update the GH_TOKEN secret.

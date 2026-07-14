@@ -13,6 +13,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ds = json.load(open(f"{ROOT}/out/players_dataset.json"))
 DATA_JS = json.dumps(ds, separators=(",", ":"))
 BUILT = datetime.datetime.now(datetime.timezone.utc).strftime("%b %d, %Y · %H:%M UTC")
+# Optional "Refresh now" button: URL of the Cloudflare Worker relay (empty = no button)
+_wu = f"{ROOT}/worker_url.txt"
+WORKER_URL = open(_wu).read().strip() if os.path.exists(_wu) else ""
 
 HTML = r"""<!doctype html>
 <html lang="en">
@@ -93,6 +96,9 @@ HTML = r"""<!doctype html>
   td.hl10{background:var(--hl10)}
   .empty{padding:40px;text-align:center;color:var(--muted)}
   .foot{margin-top:14px;color:var(--muted);font-size:12px;text-align:center}
+  button.refresh{font:inherit;font-size:12px;font-weight:600;padding:3px 9px;border:1px solid var(--accent);
+    background:var(--accent);color:#fff;border-radius:6px;cursor:pointer}
+  button.refresh:disabled{opacity:.5;cursor:default}
   /* player view */
   #playerview{background:var(--panel);border:1px solid var(--line);border-radius:10px;
     padding:18px 20px;box-shadow:0 1px 2px rgba(20,24,33,.04)}
@@ -163,7 +169,10 @@ HTML = r"""<!doctype html>
   <div id="playerview" hidden></div>
 
   <div class="foot">SLN Stat Book — data mirrored from simleaguenirvana.com · click a player name for their SLN page, 📊 to compare years.<br>
-    <span style="opacity:.85">Data updated <b>__BUILT__</b> · auto-refreshes every 4 hours · <a href="#" onclick="location.reload();return false;">reload</a></span></div>
+    <span style="opacity:.85">Data updated <b>__BUILT__</b> · auto-refreshes every 4 hours ·
+    <button id="refreshBtn" class="refresh" hidden>🔄 Refresh now</button>
+    <a href="#" onclick="location.reload();return false;">reload</a>
+    <span id="refreshMsg" style="margin-left:6px"></span></span></div>
 </div>
 <script id="data" type="application/json">__DATA__</script>
 <script>
@@ -481,13 +490,33 @@ seasonSel.onchange=()=>{ buildFacets(); render(); };
 el('mpg').onchange=render; el('team').onchange=render; el('pos').onchange=render; el('q').oninput=render;
 el('home').onclick=()=>{ closePlayer(); };
 
+// --- optional on-demand "Refresh now" button (via Cloudflare Worker relay) ---
+const WORKER_URL="__WORKER_URL__";
+(function(){
+  const btn=el('refreshBtn'), msg=el('refreshMsg');
+  if(!WORKER_URL){ return; }              // no worker configured -> button stays hidden
+  btn.hidden=false;
+  btn.onclick=async()=>{
+    btn.disabled=true; msg.textContent=' contacting…';
+    try{
+      const r=await fetch(WORKER_URL,{method:'POST'});
+      const j=await r.json().catch(()=>({}));
+      if(j.status==='triggered'){ msg.innerHTML=' ✅ refreshing — new stats in ~1 min, this page will reload.'; setTimeout(()=>location.reload(),75000); }
+      else if(j.status==='already_refreshing'){ msg.innerHTML=' ⏳ a refresh is already running — reload in ~1 min.'; setTimeout(()=>location.reload(),60000); }
+      else { msg.textContent=' ⚠️ could not start a refresh (try again shortly).'; btn.disabled=false; }
+    }catch(e){ msg.textContent=' ⚠️ refresh request failed (try again shortly).'; btn.disabled=false; }
+  };
+})();
+
 buildFacets(); render();
 </script>
 </body>
 </html>
 """
 
-out = HTML.replace("__DATA__", DATA_JS).replace("__BUILT__", BUILT)
+out = (HTML.replace("__DATA__", DATA_JS)
+           .replace("__BUILT__", BUILT)
+           .replace("__WORKER_URL__", WORKER_URL))
 path = f"{ROOT}/out/ndl_stats.html"
 with open(path, "w") as fh:
     fh.write(out)
