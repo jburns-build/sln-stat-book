@@ -7,11 +7,12 @@ season-scoped simleaguenirvana.com pages; per-year leader highlighting
 (top 1/3/5/10 per stat); 🏆 awards badges; and a per-player multi-year view
 with Average and 2-year Compare modes.
 """
-import json, os
+import json, os, datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ds = json.load(open(f"{ROOT}/out/players_dataset.json"))
 DATA_JS = json.dumps(ds, separators=(",", ":"))
+BUILT = datetime.datetime.now(datetime.timezone.utc).strftime("%b %d, %Y · %H:%M UTC")
 
 HTML = r"""<!doctype html>
 <html lang="en">
@@ -161,7 +162,8 @@ HTML = r"""<!doctype html>
 
   <div id="playerview" hidden></div>
 
-  <div class="foot">SLN Stat Book — data mirrored from simleaguenirvana.com · click a player name for their SLN page, 📊 to compare years.</div>
+  <div class="foot">SLN Stat Book — data mirrored from simleaguenirvana.com · click a player name for their SLN page, 📊 to compare years.<br>
+    <span style="opacity:.85">Data updated <b>__BUILT__</b> · auto-refreshes every 4 hours · <a href="#" onclick="location.reload();return false;">reload</a></span></div>
 </div>
 <script id="data" type="application/json">__DATA__</script>
 <script>
@@ -485,7 +487,7 @@ buildFacets(); render();
 </html>
 """
 
-out = HTML.replace("__DATA__", DATA_JS)
+out = HTML.replace("__DATA__", DATA_JS).replace("__BUILT__", BUILT)
 path = f"{ROOT}/out/ndl_stats.html"
 with open(path, "w") as fh:
     fh.write(out)
