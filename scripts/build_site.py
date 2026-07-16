@@ -8,11 +8,13 @@ season-scoped simleaguenirvana.com pages; per-year leader highlighting
 with Average and 2-year Compare modes.
 """
 import json, os, datetime
+from zoneinfo import ZoneInfo
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ds = json.load(open(f"{ROOT}/out/players_dataset.json"))
 DATA_JS = json.dumps(ds, separators=(",", ":"))
-BUILT = datetime.datetime.now(datetime.timezone.utc).strftime("%b %d, %Y · %H:%M UTC")
+# Build time shown to readers, in US Pacific (auto PST/PDT via the tz database)
+BUILT = datetime.datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%b %d, %Y · %-I:%M %p %Z")
 # Optional "Refresh now" button: URL of the Cloudflare Worker relay (empty = no button)
 _wu = f"{ROOT}/worker_url.txt"
 WORKER_URL = open(_wu).read().strip() if os.path.exists(_wu) else ""
