@@ -7,8 +7,17 @@ season-scoped simleaguenirvana.com pages; per-year leader highlighting
 (top 1/3/5/10 per stat); 🏆 awards badges; and a per-player multi-year view
 with Average and 2-year Compare modes.
 """
-import json, os, datetime
+import json, os, datetime, base64
 from zoneinfo import ZoneInfo
+
+# Browser-tab icon (favicon): a little basketball, drawn as SVG and embedded as a
+# data URI so the page stays self-contained (no separate icon file to host).
+FAVICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+    '<text x="16" y="26" font-size="26" text-anchor="middle">\U0001F3C0</text>'
+    '</svg>'
+)
+FAVICON = base64.b64encode(FAVICON_SVG.encode()).decode()
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ds = json.load(open(f"{ROOT}/out/players_dataset.json"))
@@ -24,6 +33,7 @@ HTML = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,__FAVICON__">
 <title>SLN Stat Book</title>
 <style>
   :root{
@@ -518,7 +528,8 @@ buildFacets(); render();
 
 out = (HTML.replace("__DATA__", DATA_JS)
            .replace("__BUILT__", BUILT)
-           .replace("__WORKER_URL__", WORKER_URL))
+           .replace("__WORKER_URL__", WORKER_URL)
+           .replace("__FAVICON__", FAVICON))
 path = f"{ROOT}/out/ndl_stats.html"
 with open(path, "w") as fh:
     fh.write(out)
