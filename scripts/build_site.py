@@ -34,9 +34,11 @@ LOGO_SVG = (
     '<g stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.85">'
     '<path d="M20 40h7"/><path d="M58 40h7"/>'
     '</g>'
+    '<path d="M32 71Q50 86 68 71" fill="none" stroke="#20242c" '
+    'stroke-width="3.6" stroke-linecap="round"/>'
     '<g fill="#ffffff" stroke="#20242c" stroke-width="1.4">'
-    '<rect x="43" y="69" width="6.6" height="12" rx="1.8"/>'
-    '<rect x="50.4" y="69" width="6.6" height="12" rx="1.8"/>'
+    '<rect x="43" y="68" width="6.6" height="12" rx="1.8"/>'
+    '<rect x="50.4" y="68" width="6.6" height="12" rx="1.8"/>'
     '</g>'
     '</svg>'
 )
