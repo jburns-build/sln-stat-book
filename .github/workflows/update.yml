@@ -32,6 +32,23 @@ jobs:
           python3 scripts/scrape_playoffs.py
           python3 scripts/build_players_dataset.py
           python3 scripts/build_site.py
+      - name: Sanity check the build before publishing
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open("out/players_dataset.json"))
+          cur = [p for p in d["players"] if p["season"] == "current"]
+          teams = {p["team"] for p in cur}
+          recs = d.get("records", {}).get("current", {})
+          print(f"live season: {len(cur)} players, {len(teams)} teams, {len(recs)} records")
+          if len(teams) < 25 or len(cur) < 200:
+              sys.exit("ERROR: live season looks incomplete — refusing to publish "
+                       "(the previous good deploy stays live).")
+          if len(d["players"]) < 15000:
+              sys.exit(f"ERROR: only {len(d['players'])} total player rows — refusing to publish.")
+          print("sanity check passed")
+          PY
+
       - name: Stage site
         run: |
           mkdir -p _site
