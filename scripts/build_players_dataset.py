@@ -105,6 +105,24 @@ def parse_abilities(html):
     return out
 
 
+def parse_record(html):
+    """(wins, losses) for the team, from the roster page's 'Current Record'
+    table (the row right below the W / L headers). None if not found."""
+    for t in re.findall(r"<table.*?</table>", html, re.I | re.S):
+        if "Current Record" not in t:
+            continue
+        rows = [[c for c in row_cells(r) if c]
+                for r in re.findall(r"<tr[^>]*>(.*?)</tr>", t, re.I | re.S)]
+        for i, c in enumerate(rows):
+            if len(c) >= 2 and c[0] == "W" and c[1] == "L" and i + 1 < len(rows):
+                nxt = rows[i + 1]
+                if (len(nxt) >= 2 and re.fullmatch(r"\d+", nxt[0])
+                        and re.fullmatch(r"\d+", nxt[1])):
+                    return int(nxt[0]), int(nxt[1])
+        break
+    return None
+
+
 def parse_champion(path):
     """Return the champion team's roster number for a season, or None.
     The bracket puts the winning team's roster link right after 'Champion'."""
@@ -198,6 +216,7 @@ def main():
     players = []
     seasons = []
     champs = {}          # season key -> champion roster number
+    records = {}         # season key -> {roster number: [wins, losses]}
     for key, label, order, d in season_dirs():
         seasons.append({"key": key, "label": label, "order": order})
         base = os.path.dirname(d)
@@ -214,6 +233,9 @@ def main():
             rn = int(re.search(r"roster(\d+)\.htm", f).group(1))
             html = open(f, encoding="latin-1").read()
             team = team_name(html) or os.path.basename(f)
+            rec = parse_record(html)
+            if rec:
+                records.setdefault(key, {})[str(rn)] = [rec[0], rec[1]]
             sal = parse_salaries(html)
             abils = parse_abilities(html)
             for rec in parse_player_stats(html):
@@ -242,7 +264,8 @@ def main():
     for s in seasons:
         s["played"] = s["key"] in played_keys
     seasons.sort(key=lambda s: -s["order"])
-    ds = {"seasons": seasons, "champs": champs, "players": players}
+    ds = {"seasons": seasons, "champs": champs, "records": records,
+          "players": players}
     os.makedirs(f"{ROOT}/out", exist_ok=True)
     with open(f"{ROOT}/out/players_dataset.json", "w") as fh:
         json.dump(ds, fh, separators=(",", ":"))

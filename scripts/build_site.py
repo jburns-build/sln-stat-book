@@ -178,6 +178,12 @@ HTML = r"""<!doctype html>
       </select></div>
     <div class="fld"><label for="team">Team</label>
       <select id="team"><option value="">All teams</option></select></div>
+    <div class="fld"><label for="rec">Team record</label>
+      <select id="rec">
+        <option value="">Any record</option>
+        <option value="losing">Losing teams only</option>
+        <option value="winning">Winning teams only</option>
+      </select></div>
     <div class="fld"><label for="pos">Position</label>
       <select id="pos"><option value="">All</option></select></div>
     <div class="fld"><label for="q">Search player</label>
@@ -216,6 +222,7 @@ HTML = r"""<!doctype html>
 <script>
 const DS = JSON.parse(document.getElementById('data').textContent);
 const CHAMPS = DS.champs||{};
+const RECORDS = DS.records||{};   // season -> {roster#: [wins, losses]}
 const SITE='https://www.simleaguenirvana.com';
 const el = (id)=>document.getElementById(id);
 
@@ -226,6 +233,14 @@ const yearNum=(k)=>YEAR[k];
 const isChamp=(p)=> CHAMPS[p.season]===p.rn;
 function champBadge(p){ return isChamp(p)
   ? `<span class="trophy" title="${yearNum(p.season)} Champion">🏆</span>` : ''; }
+// team win/loss record for a player's team that season
+const teamRec=(p)=>{ const s=RECORDS[p.season]; return s ? (s[p.rn]||null) : null; };
+function recAttr(p){ const r=teamRec(p); return r ? ` title="${yearNum(p.season)} record: ${r[0]}-${r[1]}"` : ''; }
+function recMatch(p,mode){                 // '' = any, 'losing' = W<L, 'winning' = W>L
+  if(!mode) return true;
+  const r=teamRec(p); if(!r) return false; // unknown record -> excluded from either filter
+  return mode==='losing' ? r[0]<r[1] : r[0]>r[1];
+}
 
 // url builders (season-scoped; current season lives at the top level)
 function playerUrl(p){ return p.season==='current'
@@ -316,11 +331,12 @@ function tierClass(rank){
 // ============================ TABLE VIEW ============================
 function tableRows(){
   const season=seasonSel.value, mpg=+el('mpg').value, team=el('team').value,
-        pos=el('pos').value, q=el('q').value.trim().toLowerCase();
+        pos=el('pos').value, rec=el('rec').value, q=el('q').value.trim().toLowerCase();
   return DS.players.filter(p=> p.season===season
     && (mpg===0 || (p.mpg!==null && p.mpg>=mpg))
     && (!team || p.team===team)
     && (!pos || p.pos===pos)
+    && recMatch(p,rec)
     && (!q || p.name.toLowerCase().includes(q)));
 }
 function buildHead(){
@@ -357,7 +373,7 @@ function renderTable(){
       if(c.k==='name'){ html+=`<td class="txt name"><a href="${playerUrl(p)}" target="_blank" rel="noopener">${esc(p.name)}</a>`
         +trophy(p)+`<button class="cmp" title="Compare ${esc(p.name)} across years" data-nm="${esc(p.name)}">📊</button></td>`; return; }
       if(c.k==='pos'){ html+=`<td class="txt"><span class="pos">${esc(p.pos||'')}</span></td>`; return; }
-      if(c.k==='team'){ html+=`<td class="txt team"><a href="${teamUrl(p)}" target="_blank" rel="noopener">${esc(p.team)}</a>${champBadge(p)}</td>`; return; }
+      if(c.k==='team'){ html+=`<td class="txt team"><a href="${teamUrl(p)}"${recAttr(p)} target="_blank" rel="noopener">${esc(p.team)}</a>${champBadge(p)}</td>`; return; }
       const rk = ranks[c.k] && (p.id in ranks[c.k]) ? ranks[c.k][p.id] : null;
       const cls = rk!==null ? ' class="'+tierClass(rk)+'"' : '';
       html+=`<td${cls}>${cellText(p,c)}</td>`;
@@ -405,7 +421,7 @@ const PV_COLS=[
 ];
 function pvCell(p,c){
   if(c.k==='yr')   return yearNum(p.season)+(PLAYED[p.season]?'':' *');
-  if(c.k==='team') return `<a href="${teamUrl(p)}" target="_blank" rel="noopener">${esc(p.team)}</a>${champBadge(p)}`;
+  if(c.k==='team') return `<a href="${teamUrl(p)}"${recAttr(p)} target="_blank" rel="noopener">${esc(p.team)}</a>${champBadge(p)}`;
   if(c.k==='awards') return (p.awards&&p.awards.length)? p.awards.map(a=>`<span class="awd">${esc(a)}</span>`).join('') : '<span style="color:#c2c8d2">—</span>';
   if(c.money) return fmtMoney(p[c.k]);
   if(c.pct)   return fmtPct(p[c.k]);
@@ -525,7 +541,8 @@ function buildFacets(){
   if([...posSel.options].some(o=>o.value===kp)) posSel.value=kp;
 }
 seasonSel.onchange=()=>{ buildFacets(); render(); };
-el('mpg').onchange=render; el('team').onchange=render; el('pos').onchange=render; el('q').oninput=render;
+el('mpg').onchange=render; el('team').onchange=render; el('pos').onchange=render;
+el('rec').onchange=render; el('q').oninput=render;
 el('home').onclick=()=>{ closePlayer(); };
 
 // --- optional on-demand "Refresh now" button (via Cloudflare Worker relay) ---
