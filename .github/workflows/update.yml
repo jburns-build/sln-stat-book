@@ -1,8 +1,10 @@
 name: Update Stat Book
 
-# Re-scrapes the LIVE season a few times a day, rebuilds, and publishes to
-# GitHub Pages. Historical seasons are read from the committed mirror/ (they
-# never change), so each run only fetches ~29 current-season pages.
+# Re-scrapes the LIVE seasons a few times a day, rebuilds, and publishes to
+# GitHub Pages. Historical SLN seasons are read from the committed mirror/ (they
+# never change), so each run only fetches the live rosters.
+#   /      -> SLN stat book
+#   /ndl/  -> NDL (developmental league) stat book
 on:
   schedule:
     - cron: "0 */4 * * *"   # every 4 hours (UTC) = 6x/day
@@ -25,35 +27,52 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Refresh live season and rebuild
+
+      - name: Refresh live seasons and rebuild
         run: |
-          python3 scripts/scrape_rosters_gap.py    # force-refreshes the live season
+          python3 scripts/scrape_rosters_gap.py    # force-refreshes the live SLN season
           python3 scripts/scrape_awards.py
           python3 scripts/scrape_playoffs.py
+          python3 scripts/scrape_ndl.py            # NDL: current season only (no history exists)
           python3 scripts/build_players_dataset.py
+          python3 scripts/build_players_dataset.py --league ndl
           python3 scripts/build_site.py
+          python3 scripts/build_site.py --league ndl
+
       - name: Sanity check the build before publishing
         run: |
           python3 - <<'PY'
           import json, sys
-          d = json.load(open("out/players_dataset.json"))
-          cur = [p for p in d["players"] if p["season"] == "current"]
-          teams = {p["team"] for p in cur}
-          recs = d.get("records", {}).get("current", {})
-          print(f"live season: {len(cur)} players, {len(teams)} teams, {len(recs)} records")
-          if len(teams) < 25 or len(cur) < 200:
-              sys.exit("ERROR: live season looks incomplete — refusing to publish "
-                       "(the previous good deploy stays live).")
-          if len(d["players"]) < 15000:
-              sys.exit(f"ERROR: only {len(d['players'])} total player rows — refusing to publish.")
+
+          def check(path, league, need_games):
+              d = json.load(open(path))
+              cur = [p for p in d["players"] if p["season"] == "current"]
+              teams = {p["team"] for p in cur}
+              played = sum(1 for p in cur if p["g"])
+              print(f"[{league}] live season: {len(cur)} players, {len(teams)} teams, "
+                    f"{played} with games, {len(d['players'])} total rows")
+              if len(teams) < 25 or len(cur) < 200:
+                  sys.exit(f"ERROR: {league} live season looks incomplete — refusing to publish.")
+              if need_games and played < 50:
+                  sys.exit(f"ERROR: {league} live season has almost no game data — refusing to publish.")
+              return d
+
+          sln = check("out/players_dataset.json", "sln", need_games=True)
+          if len(sln["players"]) < 15000:
+              sys.exit(f"ERROR: SLN only {len(sln['players'])} total rows — refusing to publish.")
+          # The NDL season may legitimately not have started yet, so games aren't required.
+          check("out/ndl_players_dataset.json", "ndl", need_games=False)
           print("sanity check passed")
           PY
 
       - name: Stage site
         run: |
-          mkdir -p _site
-          cp out/ndl_stats.html _site/index.html
+          mkdir -p _site/ndl
+          cp out/sln_stats.html _site/index.html
+          cp out/ndl_stats.html _site/ndl/index.html
           echo "slnstatbook.com" > _site/CNAME   # keep the custom domain on every deploy
+          ls -la _site _site/ndl
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

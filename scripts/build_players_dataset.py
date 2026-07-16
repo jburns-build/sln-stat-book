@@ -2,16 +2,28 @@
 """Parse the 'Player Statistics' table from every mirrored roster page and
 emit a single JSON dataset for the stats website.
 
-Output: out/players_dataset.json
+Usage: build_players_dataset.py [--league sln|ndl]   (default: sln)
+
+Output: out/players_dataset.json  (sln)  /  out/ndl_players_dataset.json  (ndl)
   {
     "seasons": [{"key":"current","label":"S38 (current)","order":38}, {"key":"37","label":"S37",...}, ...],
     "teams_by_season": {...},          # optional convenience
     "players": [ {season, team, id, name, pos, g, mpg, ppg, rpg, apg, spg, bpg, tpg, fgp, ftp, tpp}, ... ]
   }
 """
-import os, re, json, glob
+import os, re, json, glob, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# The NDL (developmental league) mirrors the SLN page layout exactly, just under
+# /NDL/ — same parsers. It has no published history, so it's current-season only.
+LEAGUES = {
+    "sln": {"mirror": "mirror",     "history": True,  "out": "players_dataset.json"},
+    "ndl": {"mirror": "mirror/ndl", "history": False, "out": "ndl_players_dataset.json"},
+}
+LEAGUE = "ndl" if "--league" in sys.argv and sys.argv[sys.argv.index("--league") + 1] == "ndl" else "sln"
+CFG = LEAGUES[LEAGUE]
+MIRROR = f"{ROOT}/{CFG['mirror']}"
 STAT_COLS =["id", "name", "pos", "g", "mpg", "ppg", "rpg", "apg",
              "spg", "bpg", "tpg", "fgp", "ftp", "tpp"]
 
@@ -200,14 +212,15 @@ def year_of(code):
 
 def season_dirs():
     """Yield (key, label, order, dir) for every season on disk, oldest first."""
-    dirs = []
-    for d in glob.glob(f"{ROOT}/mirror/s[0-9][0-9]/rosters"):
-        code = re.search(r"/s(\d\d)/", d).group(1)
-        dirs.append((code, d))
-    dirs.sort(key=lambda x: year_of(x[0]))
-    for code, d in dirs:
-        yield (code, str(year_of(code)), year_of(code), d)
-    cur = f"{ROOT}/mirror/current/rosters"
+    if CFG["history"]:
+        dirs = []
+        for d in glob.glob(f"{MIRROR}/s[0-9][0-9]/rosters"):
+            code = re.search(r"/s(\d\d)/", d).group(1)
+            dirs.append((code, d))
+        dirs.sort(key=lambda x: year_of(x[0]))
+        for code, d in dirs:
+            yield (code, str(year_of(code)), year_of(code), d)
+    cur = f"{MIRROR}/current/rosters"
     if os.path.isdir(cur):
         yield ("current", "2038 (in progress)", 2038, cur)
 
@@ -267,15 +280,16 @@ def main():
     ds = {"seasons": seasons, "champs": champs, "records": records,
           "players": players}
     os.makedirs(f"{ROOT}/out", exist_ok=True)
-    with open(f"{ROOT}/out/players_dataset.json", "w") as fh:
+    out_path = f"{ROOT}/out/{CFG['out']}"
+    with open(out_path, "w") as fh:
         json.dump(ds, fh, separators=(",", ":"))
     # summary
     from collections import Counter
     by_season = Counter(p["season"] for p in players)
-    print(f"seasons: {len(seasons)}  players(rows): {len(players)}")
+    print(f"[{LEAGUE}] seasons: {len(seasons)}  players(rows): {len(players)}")
     for s in seasons:
         print(f"  {s['label']:14} {by_season[s['key']]:>4} players")
-    print(f"wrote out/players_dataset.json ({os.path.getsize(ROOT+'/out/players_dataset.json'):,} bytes)")
+    print(f"[{LEAGUE}] wrote {out_path} ({os.path.getsize(out_path):,} bytes)")
 
 
 if __name__ == "__main__":

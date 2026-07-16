@@ -7,7 +7,7 @@ season-scoped simleaguenirvana.com pages; per-year leader highlighting
 (top 1/3/5/10 per stat); 🏆 awards badges; and a per-player multi-year view
 with Average and 2-year Compare modes.
 """
-import json, os, datetime, base64
+import json, os, sys, datetime, base64
 from zoneinfo import ZoneInfo
 
 # Logo: a "nerd" basketball — a basketball head wearing thick nerd glasses,
@@ -46,7 +46,19 @@ FAVICON = base64.b64encode(LOGO_SVG.encode()).decode()
 LOGO_INLINE = LOGO_SVG.replace('<svg ', '<svg width="28" height="28" ', 1)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ds = json.load(open(f"{ROOT}/out/players_dataset.json"))
+
+# Two leagues share this generator. The NDL mirrors the SLN page layout exactly,
+# just under /NDL/, and has no published history (current season only).
+SITE_ROOT = "https://slnstatbook.com"
+LEAGUES = {
+    "sln": {"data": "players_dataset.json",     "out": "sln_stats.html",
+            "name": "SLN", "site": "https://www.simleaguenirvana.com"},
+    "ndl": {"data": "ndl_players_dataset.json", "out": "ndl_stats.html",
+            "name": "NDL", "site": "https://www.simleaguenirvana.com/NDL"},
+}
+LEAGUE = "ndl" if "--league" in sys.argv and sys.argv[sys.argv.index("--league") + 1] == "ndl" else "sln"
+CFG = LEAGUES[LEAGUE]
+ds = json.load(open(f"{ROOT}/out/{CFG['data']}"))
 DATA_JS = json.dumps(ds, separators=(",", ":"))
 # Build time shown to readers, in US Pacific (auto PST/PDT via the tz database)
 BUILT = datetime.datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%b %d, %Y · %-I:%M %p %Z")
@@ -60,7 +72,7 @@ HTML = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,__FAVICON__">
-<title>SLN Stat Book</title>
+<title>__LEAGUE__ Stat Book</title>
 <style>
   :root{
     --bg:#f4f5f7; --panel:#ffffff; --ink:#141821; --muted:#5b6472;
@@ -79,7 +91,11 @@ HTML = r"""<!doctype html>
     border-bottom:3px solid var(--accent);}
   header.top .logo{font-size:20px;font-weight:800;letter-spacing:.3px;display:flex;align-items:center;gap:8px;cursor:pointer}
   header.top .logo .b{color:#ffcf3f}
-  header.top nav{margin-left:auto;color:#aeb7c6;font-size:13px}
+  header.top nav{margin-left:auto;color:#aeb7c6;font-size:13px;display:flex;align-items:center}
+  .switch{display:inline-flex;border:1px solid #3a4354;border-radius:8px;overflow:hidden}
+  .switch .lg{padding:6px 16px;color:#aeb7c6;font-weight:800;font-size:13px;letter-spacing:.4px}
+  .switch .lg:hover{background:#232b3a;text-decoration:none;color:#fff}
+  .switch .lg.on{background:var(--accent);color:#fff}
   header.top nav span{color:#5f6b7e;margin:0 6px}
   .wrap{max-width:1560px;margin:0 auto;padding:18px 20px 60px}
   .bar{background:var(--panel);border:1px solid var(--line);border-radius:10px;
@@ -159,8 +175,12 @@ HTML = r"""<!doctype html>
 </head>
 <body>
 <header class="top">
-  <div class="logo" id="home">__LOGO__ <span>SLN <span class="b">Stat Book</span></span></div>
-  <nav>Player Stats <span>|</span> Sim League Nirvana</nav>
+  <div class="logo" id="home">__LOGO__ <span>__LEAGUE__ <span class="b">Stat Book</span></span></div>
+  <nav>
+    <span class="switch">
+      <a href="__SLN_URL__" class="lg __SLN_ON__" title="Sim League Nirvana (main league)">SLN</a><a href="__NDL_URL__" class="lg __NDL_ON__" title="NDL (developmental league)">NDL</a>
+    </span>
+  </nav>
 </header>
 <div class="wrap">
   <div class="bar">
@@ -212,7 +232,7 @@ HTML = r"""<!doctype html>
 
   <div id="playerview" hidden></div>
 
-  <div class="foot">SLN Stat Book — data mirrored from simleaguenirvana.com · click a player name for their SLN page, 📊 to compare years.<br>
+  <div class="foot">__LEAGUE__ Stat Book — data mirrored from simleaguenirvana.com · click a player name for their SLN page, 📊 to compare years.<br>
     <span style="opacity:.85">Data updated <b>__BUILT__</b> · auto-refreshes every 4 hours ·
     <button id="refreshBtn" class="refresh" hidden>🔄 Refresh now</button>
     <a href="#" onclick="location.reload();return false;">reload</a>
@@ -223,7 +243,7 @@ HTML = r"""<!doctype html>
 const DS = JSON.parse(document.getElementById('data').textContent);
 const CHAMPS = DS.champs||{};
 const RECORDS = DS.records||{};   // season -> {roster#: [wins, losses]}
-const SITE='https://www.simleaguenirvana.com';
+const SITE='__SRC_SITE__';
 const el = (id)=>document.getElementById(id);
 
 // season key -> year number / label
@@ -310,7 +330,9 @@ function computeRanks(seasonKey){
   const pool=DS.players.filter(p=>p.season===seasonKey);
   const ranks={};
   HILITE.forEach(h=>{
-    const q=pool.filter(p=> p[h.k]!==null && p[h.k]!==undefined && (!h.minMpg || (p.mpg!==null&&p.mpg>=h.minMpg)));
+    // only players who've actually played qualify (also stops an unplayed
+    // season, where everything is 0.0, from highlighting every cell)
+    const q=pool.filter(p=> p.g>0 && p[h.k]!==null && p[h.k]!==undefined && (!h.minMpg || (p.mpg!==null&&p.mpg>=h.minMpg)));
     const m={};
     q.forEach(p=>{
       const v=p[h.k];
@@ -573,8 +595,14 @@ out = (HTML.replace("__DATA__", DATA_JS)
            .replace("__BUILT__", BUILT)
            .replace("__WORKER_URL__", WORKER_URL)
            .replace("__FAVICON__", FAVICON)
-           .replace("__LOGO__", LOGO_INLINE))
-path = f"{ROOT}/out/ndl_stats.html"
+           .replace("__LOGO__", LOGO_INLINE)
+           .replace("__LEAGUE__", CFG["name"])
+           .replace("__SRC_SITE__", CFG["site"])
+           .replace("__SLN_URL__", SITE_ROOT + "/")
+           .replace("__NDL_URL__", SITE_ROOT + "/ndl/")
+           .replace("__SLN_ON__", "on" if LEAGUE == "sln" else "")
+           .replace("__NDL_ON__", "on" if LEAGUE == "ndl" else ""))
+path = f"{ROOT}/out/{CFG['out']}"
 with open(path, "w") as fh:
     fh.write(out)
 print(f"wrote {path} ({os.path.getsize(path):,} bytes)")
