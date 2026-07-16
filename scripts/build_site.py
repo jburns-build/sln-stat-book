@@ -10,14 +10,38 @@ with Average and 2-year Compare modes.
 import json, os, datetime, base64
 from zoneinfo import ZoneInfo
 
-# Browser-tab icon (favicon): a little basketball, drawn as SVG and embedded as a
-# data URI so the page stays self-contained (no separate icon file to host).
-FAVICON_SVG = (
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
-    '<text x="16" y="26" font-size="26" text-anchor="middle">\U0001F3C0</text>'
+# Logo: a "nerd" basketball — a basketball head wearing thick nerd glasses,
+# with eyes and buck teeth. Drawn as SVG; used for both the browser-tab icon
+# (favicon, embedded as a data URI) and the header logo (inlined). One source.
+LOGO_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+    '<circle cx="50" cy="50" r="47" fill="#ec8b2c"/>'
+    '<g fill="none" stroke="#20242c" stroke-width="2.4" stroke-linecap="round">'
+    '<circle cx="50" cy="50" r="47"/>'
+    '<path d="M50 3V97"/>'
+    '<path d="M7 29Q50 45 93 29"/>'
+    '<path d="M7 71Q50 55 93 71"/>'
+    '</g>'
+    '<circle cx="31" cy="47" r="4" fill="#20242c"/>'
+    '<circle cx="69" cy="47" r="4" fill="#20242c"/>'
+    '<g fill="none" stroke="#141821" stroke-width="5">'
+    '<rect x="15" y="33" width="32" height="28" rx="9"/>'
+    '<rect x="53" y="33" width="32" height="28" rx="9"/>'
+    '<path d="M47 42h6" stroke-linecap="round"/>'
+    '<path d="M15 43L4 39" stroke-width="4" stroke-linecap="round"/>'
+    '<path d="M85 43L96 39" stroke-width="4" stroke-linecap="round"/>'
+    '</g>'
+    '<g stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.85">'
+    '<path d="M20 40h7"/><path d="M58 40h7"/>'
+    '</g>'
+    '<g fill="#ffffff" stroke="#20242c" stroke-width="1.4">'
+    '<rect x="43" y="69" width="6.6" height="12" rx="1.8"/>'
+    '<rect x="50.4" y="69" width="6.6" height="12" rx="1.8"/>'
+    '</g>'
     '</svg>'
 )
-FAVICON = base64.b64encode(FAVICON_SVG.encode()).decode()
+FAVICON = base64.b64encode(LOGO_SVG.encode()).decode()
+LOGO_INLINE = LOGO_SVG.replace('<svg ', '<svg width="28" height="28" ', 1)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ds = json.load(open(f"{ROOT}/out/players_dataset.json"))
@@ -133,7 +157,7 @@ HTML = r"""<!doctype html>
 </head>
 <body>
 <header class="top">
-  <div class="logo" id="home">🏀 <span>SLN <span class="b">Stat Book</span></span></div>
+  <div class="logo" id="home">__LOGO__ <span>SLN <span class="b">Stat Book</span></span></div>
   <nav>Player Stats <span>|</span> Sim League Nirvana</nav>
 </header>
 <div class="wrap">
@@ -529,7 +553,8 @@ buildFacets(); render();
 out = (HTML.replace("__DATA__", DATA_JS)
            .replace("__BUILT__", BUILT)
            .replace("__WORKER_URL__", WORKER_URL)
-           .replace("__FAVICON__", FAVICON))
+           .replace("__FAVICON__", FAVICON)
+           .replace("__LOGO__", LOGO_INLINE))
 path = f"{ROOT}/out/ndl_stats.html"
 with open(path, "w") as fh:
     fh.write(out)
