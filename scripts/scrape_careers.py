@@ -23,6 +23,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = f"{ROOT}/data/careers.json"
 OUT = f"{ROOT}/out/careers_dataset.json"
 PRE = {"96": 1996, "97": 1997, "99": 1999}
+# --cache-only: rebuild careers from the committed cache with ZERO network. Used
+# by the fast stat-book refresh (manual button / frequent cron); a daily run does
+# the real fetch. Career totals aren't real-time, so a day-old cache is fine.
+CACHE_ONLY = "--cache-only" in sys.argv
 
 
 def yr(s):
@@ -127,16 +131,40 @@ def main():
         if y >= u["y"]:
             u["y"], u["season"], u["pos"] = y, p["season"], p["pos"]
 
+    # a live player's career only changes when they play a game, so cache their
+    # slice keyed by current game count — unchanged games => cache hit, no fetch
+    cur_games = {p["id"]: int(p["g"] or 0) for p in players if p["season"] == "current"}
+
     os.makedirs(os.path.dirname(CACHE), exist_ok=True)
     cache = json.load(open(CACHE)) if os.path.exists(CACHE) else {}
     stats = {"fetched": 0, "cached": 0}
+    used = set()                                   # cache keys touched this run
+
+    def cached_current(pid):
+        """Most recent cached live-stint snapshot for an id (any game count)."""
+        best, bg = None, -1
+        for k, v in cache.items():
+            m = re.match(rf"current:{pid}:g(\d+)$", k)
+            if m and int(m.group(1)) > bg:
+                bg, best = int(m.group(1)), v
+        return best
 
     def unit(pid, season):
-        """Per-id career slice (its own stats page). Cached if retired."""
-        key = f"{season}:{pid}"
-        if season != "current" and key in cache:
+        """Per-id career slice (its own stats page). Retired stints are cached
+        forever; the live stint is cached against its game count."""
+        ck = f"current:{pid}:g{cur_games.get(pid, 0)}" if season == "current" else f"{season}:{pid}"
+        used.add(ck)
+        if ck in cache:
             stats["cached"] += 1
-            return cache[key]
+            return cache[ck]
+        if CACHE_ONLY:                             # no network: use best available
+            stats["cached"] += 1
+            if season == "current":
+                snap = cached_current(pid)
+                if snap:
+                    used.add(f"current:{pid}:g{int(snap.get('games', 0))}")
+                return snap
+            return None
         u_main, u_stats = urls(season, pid)
         h_stats = fetch(u_stats); time.sleep(0.4)
         h_main = fetch(u_main);  time.sleep(0.4)
@@ -145,9 +173,8 @@ def main():
         if not rec:
             return None
         rec.update(parse_main(h_main) if h_main else {})
-        rec["key"] = key
-        if season != "current":
-            cache[key] = rec
+        rec["key"] = f"{season}:{pid}"             # clean key for player-page links
+        cache[ck] = rec
         return rec
 
     careers, missing = [], []
@@ -193,7 +220,11 @@ def main():
             print(f"  ...{n}/{len(byname)} names "
                   f"({stats['fetched']} fetched, {stats['cached']} cached)", flush=True)
 
-    json.dump(cache, open(CACHE, "w"), separators=(",", ":"))
+    if not CACHE_ONLY:
+        # drop superseded live-stint snapshots (old game counts); keep all retired
+        cache = {k: v for k, v in cache.items()
+                 if not k.startswith("current:") or k in used}
+        json.dump(cache, open(CACHE, "w"), separators=(",", ":"))
     os.makedirs(f"{ROOT}/out", exist_ok=True)
     json.dump({"careers": careers}, open(OUT, "w"), separators=(",", ":"))
     for m in missing:

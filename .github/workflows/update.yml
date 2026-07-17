@@ -1,17 +1,28 @@
 name: Update Stat Book
 
-# Re-scrapes the LIVE seasons a few times a day, rebuilds, and publishes to
-# GitHub Pages. Historical SLN seasons are read from the committed mirror/ (they
-# never change), so each run only fetches the live rosters.
-#   /      -> SLN stat book
-#   /ndl/  -> NDL (developmental league) stat book
+# Publishes to GitHub Pages:
+#   /        -> SLN stat book        (refreshed every run — fast)
+#   /ndl/    -> NDL stat book        (refreshed every run — fast)
+#   /records/-> career records page  (career totals re-fetched once a day)
+#
+# The stat book is what needs to be near-real-time, so every run refreshes the
+# live rosters and rebuilds it. Career totals barely move game-to-game and are
+# EXPENSIVE to fetch, so they're only re-pulled once a day (08:00-11:59 UTC) or
+# when you tick "full_records" on a manual run; every other run rebuilds the
+# records page instantly from the committed cache. That keeps the manual Refresh
+# button and the frequent auto-refreshes fast.
 on:
   schedule:
-    - cron: "0 */4 * * *"   # every 4 hours (UTC) = 6x/day
-  workflow_dispatch:          # lets you run it on demand from the Actions tab
+    - cron: "0 */4 * * *"   # every 4 hours (UTC)
+  workflow_dispatch:
+    inputs:
+      full_records:
+        description: "Also re-fetch career records (slower)"
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write            # needed to commit the refreshed career cache
   pages: write
   id-token: write
 
@@ -28,16 +39,54 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Refresh live seasons and rebuild
+      - name: Decide career-records mode
+        id: mode
+        run: |
+          hour=$(date -u +%H)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$hour" -ge 08 ] && [ "$hour" -lt 12 ]; then
+            echo "careers=full" >> "$GITHUB_OUTPUT"      # once-a-day full refresh
+          elif [ "${{ github.event.inputs.full_records }}" = "true" ]; then
+            echo "careers=full" >> "$GITHUB_OUTPUT"      # manual override
+          else
+            echo "careers=cache" >> "$GITHUB_OUTPUT"     # fast: rebuild from cache
+          fi
+          echo "career mode: $(grep careers= "$GITHUB_OUTPUT")"
+
+      - name: Refresh live seasons (fast)
         run: |
           python3 scripts/scrape_rosters_gap.py    # force-refreshes the live SLN season
           python3 scripts/scrape_awards.py
           python3 scripts/scrape_playoffs.py
           python3 scripts/scrape_ndl.py            # NDL: current season only (no history exists)
+          python3 scripts/scrape_allstar.py        # all-star appearances (per-season box scores)
           python3 scripts/build_players_dataset.py
           python3 scripts/build_players_dataset.py --league ndl
-          python3 scripts/scrape_careers.py        # retired careers cached; only actives re-fetched
-          python3 scripts/scrape_allstar.py        # all-star appearances from per-season box scores
+
+      - name: Career records
+        run: |
+          if [ "${{ steps.mode.outputs.careers }}" = "full" ]; then
+            echo "full career refresh (re-fetch active players)"
+            python3 scripts/scrape_careers.py
+          else
+            echo "cache-only career build (no fetch)"
+            python3 scripts/scrape_careers.py --cache-only
+          fi
+
+      - name: Persist refreshed career cache
+        if: steps.mode.outputs.careers == 'full'
+        run: |
+          if ! git diff --quiet -- data/careers.json; then
+            git config user.name "statbook-bot"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/careers.json
+            git commit -m "auto: refresh career cache"
+            git push
+          else
+            echo "career cache unchanged"
+          fi
+
+      - name: Build pages
+        run: |
           python3 scripts/build_site.py
           python3 scripts/build_site.py --league ndl
           python3 scripts/build_records.py

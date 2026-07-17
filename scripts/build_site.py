@@ -533,14 +533,28 @@ const WORKER_URL="__WORKER_URL__";
   const btn=el('refreshBtn'), msg=el('refreshMsg');
   if(!WORKER_URL){ return; }              // no worker configured -> button stays hidden
   btn.hidden=false;
+  const builtNow=(document.querySelector('.foot b')||{}).textContent||'';
+  function waitForNewBuild(){          // reload exactly when the new build is live
+    let tries=0;
+    const iv=setInterval(async()=>{
+      tries++;
+      try{
+        const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();
+        const m=t.match(/Data updated <b>(.*?)<\/b>/);
+        if(m&&m[1]&&m[1]!==builtNow){ clearInterval(iv); location.reload(); return; }
+      }catch(e){}
+      if(tries>=25){ clearInterval(iv); msg.innerHTML=' ✅ still building — reload in a moment to see the latest.'; }
+    },20000);
+  }
   btn.onclick=async()=>{
     btn.disabled=true; msg.textContent=' contacting…';
     try{
       const r=await fetch(WORKER_URL,{method:'POST'});
       const j=await r.json().catch(()=>({}));
-      if(j.status==='triggered'){ msg.innerHTML=' ✅ refreshing — new stats in ~1 min, this page will reload.'; setTimeout(()=>location.reload(),75000); }
-      else if(j.status==='already_refreshing'){ msg.innerHTML=' ⏳ a refresh is already running — reload in ~1 min.'; setTimeout(()=>location.reload(),60000); }
-      else { msg.textContent=' ⚠️ could not start a refresh (try again shortly).'; btn.disabled=false; }
+      if(j.status==='triggered'||j.status==='already_refreshing'){
+        msg.innerHTML=' ✅ refreshing… the page updates automatically when the new build is live (usually 1–3 min).';
+        waitForNewBuild();
+      } else { msg.textContent=' ⚠️ could not start a refresh (try again shortly).'; btn.disabled=false; }
     }catch(e){ msg.textContent=' ⚠️ refresh request failed (try again shortly).'; btn.disabled=false; }
   };
 })();
