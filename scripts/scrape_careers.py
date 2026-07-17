@@ -106,50 +106,100 @@ def urls(season, pid):
     return f"{base}/player{pid}.htm", f"{base}/player{pid}stats.htm"
 
 
+# numeric fields summed across a player's stints to form one career
+SUM_FIELDS = ["games", "fg", "fga", "ft", "fta", "tp", "tpa", "reb", "ast",
+              "stl", "blk", "tov", "mp", "pts", "dd", "td", "seasons"]
+
+
 def main():
-    ds = json.load(open(f"{ROOT}/out/players_dataset.json"))
-    last = {}
-    for p in ds["players"]:
-        cur = last.get(p["name"])
-        if cur is None or yr(p["season"]) > yr(cur["season"]):
-            last[p["name"]] = p
+    from collections import defaultdict
+    players = json.load(open(f"{ROOT}/out/players_dataset.json"))["players"]
+    years = sorted({yr(p["season"]) for p in players})
+    idx = {y: i for i, y in enumerate(years)}    # real-season ordinal (no 1998)
+
+    # name -> {id -> {'years':set, 'season':last code for that id, 'y':last yr, 'pos'}}
+    byname = defaultdict(dict)
+    for p in players:
+        y = yr(p["season"])
+        u = byname[p["name"]].setdefault(
+            p["id"], {"years": set(), "season": p["season"], "y": y, "pos": p["pos"]})
+        u["years"].add(y)
+        if y >= u["y"]:
+            u["y"], u["season"], u["pos"] = y, p["season"], p["pos"]
 
     os.makedirs(os.path.dirname(CACHE), exist_ok=True)
     cache = json.load(open(CACHE)) if os.path.exists(CACHE) else {}
+    stats = {"fetched": 0, "cached": 0}
 
-    careers, fetched, cached = [], 0, 0
-    for i, (name, p) in enumerate(sorted(last.items()), 1):
-        key = f"{p['season']}:{p['id']}"
-        active = p["season"] == "current"
-        if not active and key in cache:          # retired careers never change
-            careers.append(cache[key]); cached += 1; continue
-        u_main, u_stats = urls(p["season"], p["id"])
+    def unit(pid, season):
+        """Per-id career slice (its own stats page). Cached if retired."""
+        key = f"{season}:{pid}"
+        if season != "current" and key in cache:
+            stats["cached"] += 1
+            return cache[key]
+        u_main, u_stats = urls(season, pid)
         h_stats = fetch(u_stats); time.sleep(0.4)
         h_main = fetch(u_main);  time.sleep(0.4)
-        fetched += 1
-        if not h_stats:
-            print(f"  !! no stats page for {name} ({key})")
-            continue
-        rec = parse_stats(h_stats)
+        stats["fetched"] += 1
+        rec = parse_stats(h_stats) if h_stats else None
         if not rec:
-            print(f"  !! unparsable stats for {name} ({key})")
-            continue
+            return None
         rec.update(parse_main(h_main) if h_main else {})
-        rec["name"] = name
-        rec["pos"] = rec.get("pos") or p["pos"]
-        rec["active"] = active
         rec["key"] = key
-        if not active:
+        if season != "current":
             cache[key] = rec
-        careers.append(rec)
-        if fetched % 100 == 0:
-            print(f"  ...{i}/{len(last)} ({fetched} fetched, {cached} cached)", flush=True)
+        return rec
+
+    careers, missing = [], []
+    for n, (name, idmap) in enumerate(sorted(byname.items()), 1):
+        # split the player's ids into careers on a >=3 real-season gap; an
+        # un-retirement (contiguous new id) stays one career, a different player
+        # reusing the name (big gap) becomes a separate one.
+        segs = []
+        for pid in sorted(idmap, key=lambda i: min(idmap[i]["years"])):
+            ymin = min(idmap[pid]["years"])
+            if segs and idx[ymin] - idx[segs[-1]["maxy"]] < 3:
+                segs[-1]["ids"].append(pid)
+                segs[-1]["maxy"] = max(segs[-1]["maxy"], max(idmap[pid]["years"]))
+            else:
+                segs.append({"ids": [pid], "maxy": max(idmap[pid]["years"])})
+
+        for seg in segs:
+            units = []
+            for pid in seg["ids"]:
+                rec = unit(pid, idmap[pid]["season"])
+                if rec is None:
+                    missing.append(f"{name} {idmap[pid]['season']}:{pid}")
+                else:
+                    units.append((pid, rec))
+            if not units:
+                continue
+            car = {"name": name}
+            for f in SUM_FIELDS:
+                car[f] = sum(u[1].get(f, 0) or 0 for u in units)
+            yrs = sorted({y for pid in seg["ids"] for y in idmap[pid]["years"]})
+            car["first"], car["last"] = yrs[0], yrs[-1]
+            car["active"] = any(idmap[pid]["season"] == "current" for pid in seg["ids"])
+            latest = max(units, key=lambda u: idmap[u[0]]["y"])
+            car["key"], car["pos"] = latest[1]["key"], idmap[latest[0]]["pos"]
+            teams = []
+            for _, rec in units:
+                for t in (rec.get("teams") or []):
+                    if t not in teams:
+                        teams.append(t)
+            car["teams"] = teams
+            careers.append(car)
+        if n % 300 == 0:
+            print(f"  ...{n}/{len(byname)} names "
+                  f"({stats['fetched']} fetched, {stats['cached']} cached)", flush=True)
 
     json.dump(cache, open(CACHE, "w"), separators=(",", ":"))
     os.makedirs(f"{ROOT}/out", exist_ok=True)
     json.dump({"careers": careers}, open(OUT, "w"), separators=(",", ":"))
-    print(f"careers: {len(careers)} players ({fetched} fetched, {cached} from cache)")
-    print(f"wrote {OUT} ({os.path.getsize(OUT):,} bytes); cache {len(cache)} retired")
+    for m in missing:
+        print(f"  !! no stats page: {m}")
+    print(f"careers: {len(careers)} ({stats['fetched']} fetched, {stats['cached']} from cache)")
+    print(f"wrote {OUT} ({os.path.getsize(OUT):,} bytes); cache {len(cache)} retired stints")
     if len(careers) < 1500:
         sys.exit(f"ERROR: only {len(careers)} careers — refusing to continue.")
 
