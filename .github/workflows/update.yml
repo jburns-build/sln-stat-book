@@ -37,6 +37,7 @@ jobs:
           python3 scripts/build_players_dataset.py
           python3 scripts/build_players_dataset.py --league ndl
           python3 scripts/scrape_careers.py        # retired careers cached; only actives re-fetched
+          python3 scripts/scrape_allstar.py        # all-star appearances from per-season box scores
           python3 scripts/build_site.py
           python3 scripts/build_site.py --league ndl
           python3 scripts/build_records.py
@@ -64,6 +65,10 @@ jobs:
               sys.exit(f"ERROR: SLN only {len(sln['players'])} total rows — refusing to publish.")
           # The NDL season may legitimately not have started yet, so games aren't required.
           check("out/ndl_players_dataset.json", "ndl", need_games=False)
+          allstar = json.load(open("out/allstar.json"))["appearances"]
+          print(f"[records] {len(allstar)} all-star appearances")
+          if len(allstar) < 400:
+              sys.exit("ERROR: all-star data looks incomplete — refusing to publish.")
           careers = json.load(open("out/careers_dataset.json"))["careers"]
           act = sum(1 for c in careers if c.get("active"))
           print(f"[records] {len(careers)} careers, {act} active")

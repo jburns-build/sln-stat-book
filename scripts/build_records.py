@@ -37,6 +37,13 @@ for p in _pl:
         {"y": _yr(p["season"]), "key": f"{p['season']}:{p['id']}", "pos": p["pos"],
          "active": p["season"] == "current", "aw": p.get("awards") or []})
 
+# All-Star appearances (from the box scores), attributed by (name, year) to the
+# matching career segment — same bundling as everything else.
+_allstar = json.load(open(f"{ROOT}/out/allstar.json"))["appearances"]
+_asy = defaultdict(list)
+for nm, y in _allstar:
+    _asy[nm].append(y)
+
 award_players = []
 for name, stints in _byname.items():
     stints.sort(key=lambda s: s["y"])
@@ -49,14 +56,16 @@ for name, stints in _byname.items():
     for seg in segs:
         aw = Counter(a for st in seg for a in st["aw"])
         counts = {k: aw[k] for k in AWARD_KEYS if aw[k]}
-        if not counts:
+        lo, hi = min(st["y"] for st in seg), max(st["y"] for st in seg)
+        allstar = sum(1 for y in _asy.get(name, []) if lo <= y <= hi)
+        if not counts and not allstar:
             continue
         last = max(seg, key=lambda st: st["y"])
-        award_players.append({
-            "name": name, "aw": counts,
-            "first": min(st["y"] for st in seg), "last": last["y"],
-            "active": any(st["active"] for st in seg),
-            "key": last["key"], "pos": last["pos"]})
+        rec = {"name": name, "aw": counts, "as": allstar,
+               "first": lo, "last": last["y"],
+               "active": any(st["active"] for st in seg),
+               "key": last["key"], "pos": last["pos"]}
+        award_players.append(rec)
 ds["awardPlayers"] = award_players
 
 DATA_JS = json.dumps(ds, separators=(",", ":"))
@@ -151,6 +160,8 @@ __SWITCH_CSS__
   </div>
   <h2 class="sect">Career totals <span>top 10 per category</span></h2>
   <div class="cards" id="cards"></div>
+  <h2 class="sect">All-Star selections <span>top 10 · most All-Star Game appearances</span></h2>
+  <div class="cards" id="allstar"></div>
   <h2 class="sect">Awards <span>most won, top 5 per award</span></h2>
   <div class="cards" id="awards"></div>
   <div class="foot">SLN Career Records — top 10 per category across all 42 seasons (1996–2038).
@@ -224,6 +235,15 @@ function rowHtml(p,i,val,q){
    + `<span class="v">${val}</span></div>`;
 }
 
+function renderAllStar(q){
+  const pool = mode==='active' ? AP.filter(p=>p.active) : AP;
+  const rows = pool.filter(p=>(p.as||0)).sort((a,b)=>(b.as||0)-(a.as||0)).slice(0,10);
+  let h=`<div class="card"><h3>All-Star Game Appearances`
+    +`<span class="approx" title="From the per-season All-Star box scores. The site archives boxes for 1999 and 2001–2037; the 1996, 1997, 2000 and 2005 games aren't archived, so a few players from those years are slightly undercounted.">boxes 1999–2037</span></h3>`;
+  rows.forEach((p,i)=> h+=rowHtml(p,i,(p.as||0)+'×',q));
+  el('allstar').innerHTML = h+`</div>`;
+}
+
 function renderAwards(q){
   const box=el('awards'); box.innerHTML='';
   AWARD_CATS.forEach(c=>{
@@ -248,6 +268,7 @@ function render(){
     h+=`</div>`;
     cards.insertAdjacentHTML('beforeend',h);
   });
+  renderAllStar(q);
   renderAwards(q);
   const act=C.filter(p=>p.active).length;
   el('note').innerHTML = mode==='active'

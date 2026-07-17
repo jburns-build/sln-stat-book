@@ -18,6 +18,7 @@ python3 scripts/build_players_dataset.py           || exit 1
 python3 scripts/build_players_dataset.py --league ndl || exit 1
 echo "6/7  Refreshing career records (retired cached, actives re-fetched)…"
 python3 scripts/scrape_careers.py         || exit 1
+python3 scripts/scrape_allstar.py         || exit 1
 echo "7/7  Rebuilding webpages…"
 python3 scripts/build_site.py             || exit 1
 python3 scripts/build_site.py --league ndl || exit 1
