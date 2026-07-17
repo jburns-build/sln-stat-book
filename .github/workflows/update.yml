@@ -36,8 +36,10 @@ jobs:
           python3 scripts/scrape_ndl.py            # NDL: current season only (no history exists)
           python3 scripts/build_players_dataset.py
           python3 scripts/build_players_dataset.py --league ndl
+          python3 scripts/scrape_careers.py        # retired careers cached; only actives re-fetched
           python3 scripts/build_site.py
           python3 scripts/build_site.py --league ndl
+          python3 scripts/build_records.py
 
       - name: Sanity check the build before publishing
         run: |
@@ -62,16 +64,22 @@ jobs:
               sys.exit(f"ERROR: SLN only {len(sln['players'])} total rows — refusing to publish.")
           # The NDL season may legitimately not have started yet, so games aren't required.
           check("out/ndl_players_dataset.json", "ndl", need_games=False)
+          careers = json.load(open("out/careers_dataset.json"))["careers"]
+          act = sum(1 for c in careers if c.get("active"))
+          print(f"[records] {len(careers)} careers, {act} active")
+          if len(careers) < 1500 or act < 200:
+              sys.exit("ERROR: career records look incomplete — refusing to publish.")
           print("sanity check passed")
           PY
 
       - name: Stage site
         run: |
-          mkdir -p _site/ndl
+          mkdir -p _site/ndl _site/records
           cp out/sln_stats.html _site/index.html
           cp out/ndl_stats.html _site/ndl/index.html
+          cp out/records.html _site/records/index.html
           echo "slnstatbook.com" > _site/CNAME   # keep the custom domain on every deploy
-          ls -la _site _site/ndl
+          ls -la _site _site/ndl _site/records
 
       - uses: actions/upload-pages-artifact@v3
         with:

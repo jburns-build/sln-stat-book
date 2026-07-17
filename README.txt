@@ -2,12 +2,19 @@ SLN STAT BOOK
 =============
 
 A sortable/filterable stat table for every player in the Sim League Nirvana
-(NDL) sim basketball league, themed after slnassistantgm.com.
+(SLN) sim basketball league, themed after slnassistantgm.com.
+
+THREE PAGES (tabs at the top of every page switch between them):
+  SLN     -> https://slnstatbook.com/          42 years of the main league
+  NDL     -> https://slnstatbook.com/ndl/      the developmental league (current season only;
+                                               the site publishes no NDL history)
+  Records -> https://slnstatbook.com/records/  career leaders, top 10 per category
 
 OPEN IT
 -------
 Double-click  SLN_Stat_Book.html  (a self-contained webpage — no internet or
-server needed; all data is baked in). Same file also lives at out/ndl_stats.html.
+server needed; all data is baked in). NDL_Stat_Book.html and
+SLN_Career_Records.html are the other two pages.
 
 WHAT'S IN THE TABLE
 -------------------
@@ -36,6 +43,27 @@ Search a player (or click the 📊 next to any name) to open their multi-year vi
   - and an "Ability grades over time" table (In/Out/Hn/Df/Reb/Pot letter grades
     with ▲/▼ arrows showing how each rating changed year to year).
 "← All players" (or the SLN logo) returns to the table.
+
+CAREER RECORDS PAGE
+-------------------
+The league's own Player Career Records page shows only the single leader in each
+category. This page shows the TOP 10 in each, with a toggle for:
+  - All-time top 10 (a green dot marks players still active in 2038)
+  - Active players' top 10
+Categories: Games, Points, Rebounds, Assists, Steals, Blocks, Turnovers,
+Field Goals, Free Throws, 3 Pointers, Double Doubles, Triple Doubles.
+
+Accuracy: Games, Points, FG, FT, 3P and Double/Triple Doubles are EXACT (verified
+against the league's own records — e.g. Kobe's 1,727 games, Luka's 48,683 points).
+Rebounds/Assists/Steals/Blocks/Turnovers are only published as per-game averages,
+so their career totals are derived and carry ~0.1% rounding; those cards are
+marked "≈ derived".
+
+Source: each player page embeds an iframe (player<ID>stats.htm) with their full
+career season-by-season including raw FG/FT/3P totals. Retired careers never
+change, so they're cached in data/careers.json (committed); only active players
+are re-fetched on each build.
+
 
 REBUILD IT (e.g. once 2038 games start logging)
 -----------------------------------------------
