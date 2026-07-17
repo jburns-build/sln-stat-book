@@ -160,9 +160,7 @@ __SWITCH_CSS__
   </div>
   <h2 class="sect">Career totals <span>top 10 per category</span></h2>
   <div class="cards" id="cards"></div>
-  <h2 class="sect">All-Star selections <span>top 10 · most All-Star Game appearances</span></h2>
-  <div class="cards" id="allstar"></div>
-  <h2 class="sect">Awards <span>most won, top 5 per award</span></h2>
+  <h2 class="sect">Awards &amp; honors <span>top 5 each</span></h2>
   <div class="cards" id="awards"></div>
   <div class="foot">SLN Career Records — top 10 per category across all 42 seasons (1996–2038).
     <span class="dot"></span> = still active in 2038.<br>
@@ -235,17 +233,15 @@ function rowHtml(p,i,val,q){
    + `<span class="v">${val}</span></div>`;
 }
 
-function renderAllStar(q){
-  const pool = mode==='active' ? AP.filter(p=>p.active) : AP;
-  const rows = pool.filter(p=>(p.as||0)).sort((a,b)=>(b.as||0)-(a.as||0)).slice(0,10);
-  let h=`<div class="card"><h3>All-Star Game Appearances`
-    +`<span class="approx" title="From the per-season All-Star box scores. The site archives boxes for 1999 and 2001–2037; the 1996, 1997, 2000 and 2005 games aren't archived, so a few players from those years are slightly undercounted.">boxes 1999–2037</span></h3>`;
-  rows.forEach((p,i)=> h+=rowHtml(p,i,(p.as||0)+'×',q));
-  el('allstar').innerHTML = h+`</div>`;
-}
-
 function renderAwards(q){
   const box=el('awards'); box.innerHTML='';
+  // All-Star appearances lead the honors, then the five awards.
+  const pool = mode==='active' ? AP.filter(p=>p.active) : AP;
+  const asRows = pool.filter(p=>(p.as||0)).sort((a,b)=>(b.as||0)-(a.as||0)).slice(0,5);
+  let ah=`<div class="card"><h3>All-Star Selections`
+    +`<span class="approx" title="From the per-season All-Star box scores. The site archives boxes for 1999 and 2001–2037; the 1996, 1997, 2000 and 2005 games aren't archived, so a few players from those years are slightly undercounted.">boxes 1999–2037</span></h3>`;
+  asRows.forEach((p,i)=> ah+=rowHtml(p,i,(p.as||0)+'×',q));
+  box.insertAdjacentHTML('beforeend',ah+`</div>`);
   AWARD_CATS.forEach(c=>{
     const rows=topAward(c.k);
     let h=`<div class="card"><h3>${c.t}</h3>`;
@@ -268,7 +264,6 @@ function render(){
     h+=`</div>`;
     cards.insertAdjacentHTML('beforeend',h);
   });
-  renderAllStar(q);
   renderAwards(q);
   const act=C.filter(p=>p.active).length;
   el('note').innerHTML = mode==='active'
