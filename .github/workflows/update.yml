@@ -90,6 +90,7 @@ jobs:
           python3 scripts/build_site.py
           python3 scripts/build_site.py --league ndl
           python3 scripts/build_records.py
+          python3 scripts/build_teams.py         # franchise records — pure compute, no fetch
 
       - name: Sanity check the build before publishing
         run: |
@@ -128,12 +129,13 @@ jobs:
 
       - name: Stage site
         run: |
-          mkdir -p _site/ndl _site/records
+          mkdir -p _site/ndl _site/records _site/teams
           cp out/sln_stats.html _site/index.html
           cp out/ndl_stats.html _site/ndl/index.html
           cp out/records.html _site/records/index.html
+          cp out/teams.html _site/teams/index.html
           echo "slnstatbook.com" > _site/CNAME   # keep the custom domain on every deploy
-          ls -la _site _site/ndl _site/records
+          ls -la _site _site/ndl _site/records _site/teams
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -3,6 +3,7 @@ out/
 SLN_Stat_Book.html
 NDL_Stat_Book.html
 SLN_Career_Records.html
+SLN_Team_Records.html
 _site/
 
 # The live seasons are always re-scraped fresh in CI — don't track the snapshots

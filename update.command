@@ -23,9 +23,11 @@ echo "7/7  Rebuilding webpages…"
 python3 scripts/build_site.py             || exit 1
 python3 scripts/build_site.py --league ndl || exit 1
 python3 scripts/build_records.py          || exit 1
+python3 scripts/build_teams.py            || exit 1
 cp out/sln_stats.html SLN_Stat_Book.html
 cp out/ndl_stats.html NDL_Stat_Book.html
 cp out/records.html   SLN_Career_Records.html
+cp out/teams.html     SLN_Team_Records.html
 
 echo ""
-echo "✅  Updated:  SLN_Stat_Book.html  +  NDL_Stat_Book.html  +  SLN_Career_Records.html"
+echo "✅  Updated:  SLN_Stat_Book.html  +  NDL_Stat_Book.html  +  SLN_Career_Records.html  +  SLN_Team_Records.html"
