@@ -15,7 +15,8 @@ A player's LAST stint's page holds their complete career, so we fetch one page
 pair per player. Retired careers never change -> cached forever in
 data/careers.json (committed). Only active players are re-fetched.
 """
-import json, os, re, sys, time, urllib.request, urllib.error
+import json, os, re, sys, time, datetime, urllib.request, urllib.error
+from zoneinfo import ZoneInfo
 
 UA = {"User-Agent": "Mozilla/5.0 (research audit; polite)"}
 B = "https://www.simleaguenirvana.com"
@@ -140,6 +141,15 @@ def main():
     stats = {"fetched": 0, "cached": 0}
     used = set()                                   # cache keys touched this run
 
+    # when the career totals were last actually fetched (only a full run refetches;
+    # cache-only builds carry the previous value forward so the page can show it)
+    if CACHE_ONLY:
+        fetched_at = cache.get("_fetched_at", "unknown")
+    else:
+        fetched_at = datetime.datetime.now(ZoneInfo("America/Los_Angeles")).strftime(
+            "%b %d, %Y · %-I:%M %p %Z")
+        cache["_fetched_at"] = fetched_at
+
     def cached_current(pid):
         """Most recent cached live-stint snapshot for an id (any game count)."""
         best, bg = None, -1
@@ -226,7 +236,8 @@ def main():
                  if not k.startswith("current:") or k in used}
         json.dump(cache, open(CACHE, "w"), separators=(",", ":"))
     os.makedirs(f"{ROOT}/out", exist_ok=True)
-    json.dump({"careers": careers}, open(OUT, "w"), separators=(",", ":"))
+    json.dump({"careers": careers, "fetched": fetched_at}, open(OUT, "w"),
+              separators=(",", ":"))
     for m in missing:
         print(f"  !! no stats page: {m}")
     print(f"careers: {len(careers)} ({stats['fetched']} fetched, {stats['cached']} from cache)")

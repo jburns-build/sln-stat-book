@@ -68,6 +68,7 @@ for name, stints in _byname.items():
         award_players.append(rec)
 ds["awardPlayers"] = award_players
 
+FETCHED = ds.get("fetched", "unknown")   # when career totals were last actually pulled
 DATA_JS = json.dumps(ds, separators=(",", ":"))
 BUILT = datetime.datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%b %d, %Y · %-I:%M %p %Z")
 _wu = f"{ROOT}/worker_url.txt"
@@ -164,7 +165,8 @@ __SWITCH_CSS__
   <div class="cards" id="awards"></div>
   <div class="foot">SLN Career Records — top 10 per category across all 42 seasons (1996–2038).
     <span class="dot"></span> = still active in 2038.<br>
-    <span style="opacity:.85">Data updated <b>__BUILT__</b> · auto-refreshes every 4 hours ·
+    <b>Career totals last pulled __FETCHED__</b> (refreshed once a day); awards &amp; All-Star update on every refresh.<br>
+    <span style="opacity:.85">Page rebuilt <b id="buildstamp">__BUILT__</b> · auto-refreshes every 4 hours ·
     <button id="refreshBtn" class="refresh" hidden>🔄 Refresh now</button>
     <a href="#" onclick="location.reload();return false;">reload</a>
     <span id="refreshMsg" style="margin-left:6px"></span></span></div>
@@ -280,14 +282,14 @@ const WORKER_URL="__WORKER_URL__";
   const btn=el('refreshBtn'), msg=el('refreshMsg');
   if(!WORKER_URL) return;
   btn.hidden=false;
-  const builtNow=(document.querySelector('.foot b')||{}).textContent||'';
+  const builtNow=(document.getElementById('buildstamp')||{}).textContent||'';
   function waitForNewBuild(){          // reload exactly when the new build is live
     let tries=0;
     const iv=setInterval(async()=>{
       tries++;
       try{
         const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();
-        const m=t.match(/Data updated <b>(.*?)<\/b>/);
+        const m=t.match(/id="buildstamp">(.*?)<\/b>/);
         if(m&&m[1]&&m[1]!==builtNow){ clearInterval(iv); location.reload(); return; }
       }catch(e){}
       if(tries>=25){ clearInterval(iv); msg.innerHTML=' ✅ still building — reload in a moment to see the latest.'; }
@@ -314,6 +316,7 @@ render();
 
 out = (HTML.replace("__DATA__", DATA_JS)
            .replace("__BUILT__", BUILT)
+           .replace("__FETCHED__", FETCHED)
            .replace("__WORKER_URL__", WORKER_URL)
            .replace("__FAVICON__", FAVICON)
            .replace("__LOGO__", LOGO_INLINE)

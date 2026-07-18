@@ -193,7 +193,7 @@ __SWITCH_CSS__
   <div id="playerview" hidden></div>
 
   <div class="foot">__LEAGUE__ Stat Book — data mirrored from simleaguenirvana.com · click a player name for their SLN page, 📊 to compare years.<br>
-    <span style="opacity:.85">Data updated <b>__BUILT__</b> · auto-refreshes every 4 hours ·
+    <span style="opacity:.85">Data updated <b id="buildstamp">__BUILT__</b> · auto-refreshes every 4 hours ·
     <button id="refreshBtn" class="refresh" hidden>🔄 Refresh now</button>
     <a href="#" onclick="location.reload();return false;">reload</a>
     <span id="refreshMsg" style="margin-left:6px"></span></span></div>
@@ -533,14 +533,14 @@ const WORKER_URL="__WORKER_URL__";
   const btn=el('refreshBtn'), msg=el('refreshMsg');
   if(!WORKER_URL){ return; }              // no worker configured -> button stays hidden
   btn.hidden=false;
-  const builtNow=(document.querySelector('.foot b')||{}).textContent||'';
+  const builtNow=(document.getElementById('buildstamp')||{}).textContent||'';
   function waitForNewBuild(){          // reload exactly when the new build is live
     let tries=0;
     const iv=setInterval(async()=>{
       tries++;
       try{
         const t=await (await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'})).text();
-        const m=t.match(/Data updated <b>(.*?)<\/b>/);
+        const m=t.match(/id="buildstamp">(.*?)<\/b>/);
         if(m&&m[1]&&m[1]!==builtNow){ clearInterval(iv); location.reload(); return; }
       }catch(e){}
       if(tries>=25){ clearInterval(iv); msg.innerHTML=' ✅ still building — reload in a moment to see the latest.'; }
