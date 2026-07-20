@@ -64,9 +64,11 @@ jobs:
           python3 scripts/build_players_dataset.py --league ndl
 
       - name: Career records
+        env:
+          CAREERS_BUDGET_SECONDS: "720"   # cap fetch time; fall back to cache past it
         run: |
           if [ "${{ steps.mode.outputs.careers }}" = "full" ]; then
-            echo "full career refresh (re-fetch active players)"
+            echo "full career refresh (re-fetch active players; 12-min fetch budget)"
             python3 scripts/scrape_careers.py
           else
             echo "cache-only career build (no fetch)"

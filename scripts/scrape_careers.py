@@ -28,6 +28,11 @@ PRE = {"96": 1996, "97": 1997, "99": 1999}
 # by the fast stat-book refresh (manual button / frequent cron); a daily run does
 # the real fetch. Career totals aren't real-time, so a day-old cache is fine.
 CACHE_ONLY = "--cache-only" in sys.argv
+# On a network-degraded CI runner a full fetch can crawl; cap wall-clock time
+# spent fetching (0 = unlimited, e.g. local). Past the budget we fall back to
+# cache so the run finishes and publishes instead of hitting the job timeout.
+BUDGET = float(os.environ.get("CAREERS_BUDGET_SECONDS", "0"))
+START = time.monotonic()
 
 
 def yr(s):
@@ -138,7 +143,7 @@ def main():
 
     os.makedirs(os.path.dirname(CACHE), exist_ok=True)
     cache = json.load(open(CACHE)) if os.path.exists(CACHE) else {}
-    stats = {"fetched": 0, "cached": 0}
+    stats = {"fetched": 0, "cached": 0, "skipped": 0}
     used = set()                                   # cache keys touched this run
 
     # when the career totals were last actually fetched (only a full run refetches;
@@ -167,8 +172,13 @@ def main():
         if ck in cache:
             stats["cached"] += 1
             return cache[ck]
-        if CACHE_ONLY:                             # no network: use best available
-            stats["cached"] += 1
+        # No fetch if cache-only, or if we've blown the time budget (degraded
+        # runner): fall back to the best cached snapshot so the build still ships
+        # a mostly-fresh records page instead of timing out. Missing players just
+        # wait for the next daily run.
+        out_of_time = BUDGET and (time.monotonic() - START) > BUDGET
+        if CACHE_ONLY or out_of_time:
+            stats["skipped" if out_of_time else "cached"] += 1
             if season == "current":
                 snap = cached_current(pid)
                 if snap:
@@ -240,7 +250,9 @@ def main():
               separators=(",", ":"))
     for m in missing:
         print(f"  !! no stats page: {m}")
-    print(f"careers: {len(careers)} ({stats['fetched']} fetched, {stats['cached']} from cache)")
+    budget_note = f", {stats['skipped']} skipped (time budget)" if stats["skipped"] else ""
+    print(f"careers: {len(careers)} ({stats['fetched']} fetched, "
+          f"{stats['cached']} from cache{budget_note})")
     print(f"wrote {OUT} ({os.path.getsize(OUT):,} bytes); cache {len(cache)} retired stints")
     if len(careers) < 1500:
         sys.exit(f"ERROR: only {len(careers)} careers — refusing to continue.")
