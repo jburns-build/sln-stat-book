@@ -161,6 +161,8 @@ __SWITCH_CSS__
   </div>
   <h2 class="sect">Career totals <span>top 10 per category</span></h2>
   <div class="cards" id="cards"></div>
+  <h2 class="sect">Per-game (career) <span>top 10 · minimum 400 games</span></h2>
+  <div class="cards" id="pergame"></div>
   <h2 class="sect">Awards &amp; honors <span>top 5 each</span></h2>
   <div class="cards" id="awards"></div>
   <div class="foot">SLN Career Records — top 10 per category across all 42 seasons (1996–2038).
@@ -193,6 +195,16 @@ const CATS=[
   {k:'tp',    t:'3 Pointers',     exact:true},
   {k:'dd',    t:'Double Doubles', exact:true},
   {k:'td',    t:'Triple Doubles', exact:true},
+];
+// Career per-game averages = career total / career games. PPG is exact
+// (points & games are exact); the rest inherit the ~0.1% of their totals.
+const MIN_PG_GAMES=400;
+const PGAME_CATS=[
+  {k:'pts', t:'PPG', exact:true},
+  {k:'reb', t:'RPG', exact:false},
+  {k:'ast', t:'APG', exact:false},
+  {k:'stl', t:'SPG', exact:false},
+  {k:'blk', t:'BPG', exact:false},
 ];
 // Career award counts — the five you care about.
 const AWARD_CATS=[
@@ -235,6 +247,22 @@ function rowHtml(p,i,val,q){
    + `<span class="v">${val}</span></div>`;
 }
 
+function renderPerGame(q){
+  const box=el('pergame'); box.innerHTML='';
+  const pool0 = mode==='active' ? C.filter(p=>p.active) : C;
+  const pool = pool0.filter(p=>(p.games||0)>=MIN_PG_GAMES);
+  PGAME_CATS.forEach(c=>{
+    const rows=pool.map(p=>({p, v:(p[c.k]||0)/(p.games||1)}))
+                   .filter(r=>r.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
+    let h=`<div class="card"><h3>${c.t}`
+      + (c.exact?'':`<span class="approx" title="Rebounds/assists/steals/blocks are derived from per-game averages, so these career rates carry ~0.1%. PPG is exact.">≈ derived</span>`)
+      + `</h3>`;
+    rows.forEach((r,i)=> h+=rowHtml(r.p,i,r.v.toFixed(1),q));
+    if(!rows.length) h+=`<div class="row"><span class="nm" style="color:#8b95a3;font-weight:400">No data</span></div>`;
+    box.insertAdjacentHTML('beforeend',h+`</div>`);
+  });
+}
+
 function renderAwards(q){
   const box=el('awards'); box.innerHTML='';
   // All-Star appearances lead the honors, then the five awards.
@@ -266,6 +294,7 @@ function render(){
     h+=`</div>`;
     cards.insertAdjacentHTML('beforeend',h);
   });
+  renderPerGame(q);
   renderAwards(q);
   const act=C.filter(p=>p.active).length;
   el('note').innerHTML = mode==='active'
