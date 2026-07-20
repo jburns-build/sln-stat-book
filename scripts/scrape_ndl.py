@@ -22,8 +22,10 @@ def fetch(url, attempts=3, timeout=20):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read() if r.status == 200 else None
-        except urllib.error.HTTPError:
-            return None
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 500, 502, 503, 504) or i == attempts - 1:
+                return None
+            time.sleep(2 * (i + 1))
         except Exception:
             if i == attempts - 1:
                 return None
