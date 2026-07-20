@@ -91,6 +91,14 @@ def parse_stats(html):
     tot["first"] = int(seasons[0][0])
     tot["last"] = int(seasons[-1][0])
     tot["teams"] = sorted({r[1] for r in seasons if len(r) > 1})
+    # the page's own "Career:" row carries the official per-game averages
+    # (computed once, not season-rounded) — read them directly so PPG/RPG/APG/
+    # SPG/BPG match each player's page exactly instead of being re-derived
+    car = next((r for r in rows if r and r[0].lower().startswith("career")), None)
+    if car:
+        tot["pg"] = {k: g(car, col) for k, col in
+                     [("ppg", "PPG"), ("rpg", "RPG"), ("apg", "APG"),
+                      ("spg", "SPG"), ("bpg", "BPG")]}
     return tot
 
 
@@ -224,6 +232,16 @@ def main():
             car = {"name": name}
             for f in SUM_FIELDS:
                 car[f] = sum(u[1].get(f, 0) or 0 for u in units)
+            # per-game averages: read the page's official Career-row values.
+            # One stint -> exact page value; bundled un-retirements -> games-weighted.
+            pg = {}
+            for k in ("ppg", "rpg", "apg", "spg", "bpg"):
+                sw = sum((u[1].get("games") or 0) for u in units if u[1].get("pg"))
+                if sw:
+                    pg[k] = sum((u[1]["pg"].get(k) or 0) * (u[1].get("games") or 0)
+                                for u in units if u[1].get("pg")) / sw
+            if pg:
+                car["pg"] = pg
             yrs = sorted({y for pid in seg["ids"] for y in idmap[pid]["years"]})
             car["first"], car["last"] = yrs[0], yrs[-1]
             car["active"] = any(idmap[pid]["season"] == "current" for pid in seg["ids"])

@@ -196,15 +196,15 @@ const CATS=[
   {k:'dd',    t:'Double Doubles', exact:true},
   {k:'td',    t:'Triple Doubles', exact:true},
 ];
-// Career per-game averages = career total / career games. PPG is exact
-// (points & games are exact); the rest inherit the ~0.1% of their totals.
+// Career per-game averages read straight from each player's published Career
+// row (so they match their page exactly). Keyed under career.pg.{ppg,rpg,...}.
 const MIN_PG_GAMES=400;
 const PGAME_CATS=[
-  {k:'pts', t:'PPG', exact:true},
-  {k:'reb', t:'RPG', exact:false},
-  {k:'ast', t:'APG', exact:false},
-  {k:'stl', t:'SPG', exact:false},
-  {k:'blk', t:'BPG', exact:false},
+  {k:'ppg', t:'PPG'},
+  {k:'rpg', t:'RPG'},
+  {k:'apg', t:'APG'},
+  {k:'spg', t:'SPG'},
+  {k:'bpg', t:'BPG'},
 ];
 // Career award counts — the five you care about.
 const AWARD_CATS=[
@@ -250,13 +250,11 @@ function rowHtml(p,i,val,q){
 function renderPerGame(q){
   const box=el('pergame'); box.innerHTML='';
   const pool0 = mode==='active' ? C.filter(p=>p.active) : C;
-  const pool = pool0.filter(p=>(p.games||0)>=MIN_PG_GAMES);
+  const pool = pool0.filter(p=>(p.games||0)>=MIN_PG_GAMES && p.pg);
   PGAME_CATS.forEach(c=>{
-    const rows=pool.map(p=>({p, v:(p[c.k]||0)/(p.games||1)}))
+    const rows=pool.map(p=>({p, v:(p.pg[c.k]||0)}))
                    .filter(r=>r.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
-    let h=`<div class="card"><h3>${c.t}`
-      + (c.exact?'':`<span class="approx" title="Rebounds/assists/steals/blocks are derived from per-game averages, so these career rates carry ~0.1%. PPG is exact.">≈ derived</span>`)
-      + `</h3>`;
+    let h=`<div class="card"><h3>${c.t}</h3>`;
     rows.forEach((r,i)=> h+=rowHtml(r.p,i,r.v.toFixed(1),q));
     if(!rows.length) h+=`<div class="row"><span class="nm" style="color:#8b95a3;font-weight:400">No data</span></div>`;
     box.insertAdjacentHTML('beforeend',h+`</div>`);
