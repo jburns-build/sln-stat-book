@@ -161,7 +161,7 @@ __SWITCH_CSS__
   </div>
   <h2 class="sect">Career totals <span>top 10 per category</span></h2>
   <div class="cards" id="cards"></div>
-  <h2 class="sect">Per-game (career) <span>top 10 · minimum 400 games</span></h2>
+  <h2 class="sect">Per-game (career) <span>top 10 · minimum 100 games</span></h2>
   <div class="cards" id="pergame"></div>
   <h2 class="sect">Awards &amp; honors <span>top 5 each</span></h2>
   <div class="cards" id="awards"></div>
@@ -198,7 +198,7 @@ const CATS=[
 ];
 // Career per-game averages read straight from each player's published Career
 // row (so they match their page exactly). Keyed under career.pg.{ppg,rpg,...}.
-const MIN_PG_GAMES=400;
+const MIN_PG_GAMES=100;
 const PGAME_CATS=[
   {k:'ppg', t:'PPG'},
   {k:'rpg', t:'RPG'},
@@ -236,14 +236,16 @@ function topAward(k){
   return pool.filter(p=>(p.aw&&p.aw[k])||0).sort((a,b)=>(b.aw[k]||0)-(a.aw[k]||0)).slice(0,5);
 }
 
-function rowHtml(p,i,val,q){
+function rowHtml(p,i,val,q,extra){
   const url=playerUrl(p);
   const nm=url?`<a href="${url}" target="_blank" rel="noopener">${esc(p.name)}</a>`:esc(p.name);
   const hit=q && p.name.toLowerCase().includes(q) ? ' hit' : '';
+  const tail=extra?`<span class="era">${extra}</span>`:'';
   return `<div class="row${i===0?' rk1':''}${hit}" title="${esc(p.pos||'')} · ${p.first}–${p.last} · ${p.seasons} seasons">`
    + `<span class="n">${i+1}</span>`
    + `<span class="nm">${nm}${p.active?'<span class="dot" title="Active in 2038"></span>':''}`
    + `<span class="era">'${String(p.first).slice(-2)}–'${String(p.last).slice(-2)}</span></span>`
+   + tail
    + `<span class="v">${val}</span></div>`;
 }
 
@@ -255,7 +257,7 @@ function renderPerGame(q){
     const rows=pool.map(p=>({p, v:(p.pg[c.k]||0)}))
                    .filter(r=>r.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
     let h=`<div class="card"><h3>${c.t}</h3>`;
-    rows.forEach((r,i)=> h+=rowHtml(r.p,i,r.v.toFixed(1),q));
+    rows.forEach((r,i)=> h+=rowHtml(r.p,i,r.v.toFixed(1),q,`${Math.round(r.p.games)} G`));
     if(!rows.length) h+=`<div class="row"><span class="nm" style="color:#8b95a3;font-weight:400">No data</span></div>`;
     box.insertAdjacentHTML('beforeend',h+`</div>`);
   });
