@@ -39,6 +39,15 @@ def yr(s):
     return 2038 if s == "current" else PRE.get(s, 2000 + int(s) if s.isdigit() else 0)
 
 
+# inverse of yr(): calendar year -> season code used in URLs
+def code_for_year(y):
+    if y == 2038:
+        return "current"
+    if y in (1996, 1997, 1999):
+        return str(y)[2:]
+    return f"{y - 2000:02d}"
+
+
 def fetch(url, attempts=3, timeout=20):
     for i in range(attempts):
         try:
@@ -90,6 +99,7 @@ def parse_stats(html):
     tot["seasons"] = len(seasons)
     tot["first"] = int(seasons[0][0])
     tot["last"] = int(seasons[-1][0])
+    tot["years"] = [int(r[0]) for r in seasons]      # the window this page covers
     tot["teams"] = sorted({r[1] for r in seasons if len(r) > 1})
     # the page's own "Career:" row carries the official per-game averages
     # (computed once, not season-rounded) — read them directly so PPG/RPG/APG/
@@ -140,8 +150,11 @@ def main():
     for p in players:
         y = yr(p["season"])
         u = byname[p["name"]].setdefault(
-            p["id"], {"years": set(), "season": p["season"], "y": y, "pos": p["pos"]})
+            p["id"], {"years": set(), "pyears": set(), "season": p["season"],
+                      "y": y, "pos": p["pos"]})
         u["years"].add(y)
+        if (p.get("g") or 0) > 0:                     # years the id actually played
+            u["pyears"].add(y)
         if y >= u["y"]:
             u["y"], u["season"], u["pos"] = y, p["season"], p["pos"]
 
@@ -172,10 +185,11 @@ def main():
                 bg, best = int(m.group(1)), v
         return best
 
-    def unit(pid, season):
-        """Per-id career slice (its own stats page). Retired stints are cached
-        forever; the live stint is cached against its game count."""
-        ck = f"current:{pid}:g{cur_games.get(pid, 0)}" if season == "current" else f"{season}:{pid}"
+    def snapshot(code, pid):
+        """One career-stats-page window for an id, as published at season `code`.
+        Retired windows never change -> cached forever; the live window is cached
+        against its game count."""
+        ck = f"current:{pid}:g{cur_games.get(pid, 0)}" if code == "current" else f"{code}:{pid}"
         used.add(ck)
         if ck in cache:
             stats["cached"] += 1
@@ -187,13 +201,13 @@ def main():
         out_of_time = BUDGET and (time.monotonic() - START) > BUDGET
         if CACHE_ONLY or out_of_time:
             stats["skipped" if out_of_time else "cached"] += 1
-            if season == "current":
+            if code == "current":
                 snap = cached_current(pid)
                 if snap:
                     used.add(f"current:{pid}:g{int(snap.get('games', 0))}")
                 return snap
             return None
-        u_main, u_stats = urls(season, pid)
+        u_main, u_stats = urls(code, pid)
         h_stats = fetch(u_stats); time.sleep(0.4)
         h_main = fetch(u_main);  time.sleep(0.4)
         stats["fetched"] += 1
@@ -201,9 +215,56 @@ def main():
         if not rec:
             return None
         rec.update(parse_main(h_main) if h_main else {})
-        rec["key"] = f"{season}:{pid}"             # clean key for player-page links
+        rec["key"] = f"{code}:{pid}"               # clean key for player-page links
         cache[ck] = rec
         return rec
+
+    def unit(pid, season, pyears):
+        """Full career slice for one id. The stats page normally holds the id's
+        whole career, but the sim sometimes RESETS a player's page to a fresh
+        window mid-id (an un-retirement that keeps the same id — e.g. LeBron id3
+        was reset from his 2020-25 window to a blank 2026-29 one). The last-season
+        snapshot then omits the earlier window entirely. So: take the last window,
+        then while the id was known to PLAY seasons below the earliest window we've
+        collected, walk back and fetch the window ending at that season, summing
+        the (non-overlapping) windows into one career slice."""
+        windows, guard, covered_first = [], set(), None
+        code = season
+        while code is not None and code not in guard:
+            guard.add(code)
+            rec = snapshot(code, pid)
+            if rec is None:
+                break
+            wfirst, wlast = rec.get("first", 0), rec.get("last", 0)
+            if covered_first is not None and wlast >= covered_first:
+                break                                # overlaps what we have -> stop
+            windows.append(rec)
+            covered_first = wfirst
+            below = [y for y in (pyears or []) if y < wfirst]
+            code = code_for_year(max(below)) if below else None
+        if not windows:
+            return None
+        if len(windows) == 1:
+            return windows[0]                        # common case: one clean window
+        merged = {"name": windows[0].get("name")}
+        for f in SUM_FIELDS:
+            merged[f] = sum(w.get(f, 0) or 0 for w in windows)
+        sw = sum((w.get("games") or 0) for w in windows if w.get("pg"))
+        if sw:                                       # games-weight the window averages
+            merged["pg"] = {k: sum((w["pg"].get(k) or 0) * (w.get("games") or 0)
+                                   for w in windows if w.get("pg")) / sw
+                            for k in ("ppg", "rpg", "apg", "spg", "bpg")}
+        merged["key"] = windows[0].get("key")        # newest window = player-page link
+        merged["pos"] = windows[0].get("pos")
+        merged["first"] = min(w.get("first", 9999) for w in windows)
+        merged["last"] = max(w.get("last", 0) for w in windows)
+        teams = []
+        for w in reversed(windows):                  # oldest-first team order
+            for t in (w.get("teams") or []):
+                if t not in teams:
+                    teams.append(t)
+        merged["teams"] = teams
+        return merged
 
     careers, missing = [], []
     for n, (name, idmap) in enumerate(sorted(byname.items()), 1):
@@ -222,7 +283,7 @@ def main():
         for seg in segs:
             units = []
             for pid in seg["ids"]:
-                rec = unit(pid, idmap[pid]["season"])
+                rec = unit(pid, idmap[pid]["season"], sorted(idmap[pid]["pyears"]))
                 if rec is None:
                     missing.append(f"{name} {idmap[pid]['season']}:{pid}")
                 else:
