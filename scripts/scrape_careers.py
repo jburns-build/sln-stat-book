@@ -100,6 +100,11 @@ def parse_stats(html):
     tot["first"] = int(seasons[0][0])
     tot["last"] = int(seasons[-1][0])
     tot["years"] = [int(r[0]) for r in seasons]      # the window this page covers
+    # per-season raw shooting rows -> powers TS%/eFG% in the stat book's
+    # Advanced view: [year, G, FG, FGA, FT, FTA, 3P, 3PA]
+    tot["rows"] = [[int(r[0])] + [int(g(r, c)) for c in
+                                  ("Games", "FG", "FGA", "FT", "FTA", "3P", "3PA")]
+                   for r in seasons]
     tot["teams"] = sorted({r[1] for r in seasons if len(r) > 1})
     # the page's own "Career:" row carries the official per-game averages
     # (computed once, not season-rounded) — read them directly so PPG/RPG/APG/
@@ -164,7 +169,7 @@ def main():
 
     os.makedirs(os.path.dirname(CACHE), exist_ok=True)
     cache = json.load(open(CACHE)) if os.path.exists(CACHE) else {}
-    stats = {"fetched": 0, "cached": 0, "skipped": 0}
+    stats = {"fetched": 0, "cached": 0, "skipped": 0, "backfilled": 0}
     used = set()                                   # cache keys touched this run
 
     # when the career totals were last actually fetched (only a full run refetches;
@@ -192,8 +197,19 @@ def main():
         ck = f"current:{pid}:g{cur_games.get(pid, 0)}" if code == "current" else f"{code}:{pid}"
         used.add(ck)
         if ck in cache:
+            rec = cache[ck]
+            # backfill: cache entries written before per-season shooting rows
+            # existed lack "rows"; on a full run, re-pull just the stats page
+            # (half the cost of a full refetch) to attach them. One-time.
+            if ("rows" not in rec and not CACHE_ONLY
+                    and not (BUDGET and (time.monotonic() - START) > BUDGET)):
+                h_stats = fetch(urls(code, pid)[1]); time.sleep(0.4)
+                fresh = parse_stats(h_stats) if h_stats else None
+                if fresh:
+                    rec["rows"], rec["years"] = fresh["rows"], fresh["years"]
+                    stats["backfilled"] += 1
             stats["cached"] += 1
-            return cache[ck]
+            return rec
         # No fetch if cache-only, or if we've blown the time budget (degraded
         # runner): fall back to the best cached snapshot so the build still ships
         # a mostly-fresh records page instead of timing out. Missing players just
@@ -239,6 +255,10 @@ def main():
             if covered_first is not None and wlast >= covered_first:
                 break                                # overlaps what we have -> stop
             windows.append(rec)
+            # season-level raw shooting, keyed (year, id) -> joined to roster rows
+            # by build_site.py for the Advanced view's TS%/eFG%
+            for row in rec.get("rows") or []:
+                shoot[row[0]][pid] = row[1:]
             covered_first = wfirst
             below = [y for y in (pyears or []) if y < wfirst]
             code = code_for_year(max(below)) if below else None
@@ -267,6 +287,7 @@ def main():
         return merged
 
     careers, missing = [], []
+    shoot = defaultdict(dict)          # year -> pid -> [G,FG,FGA,FT,FTA,3P,3PA]
     for n, (name, idmap) in enumerate(sorted(byname.items()), 1):
         # split the player's ids into careers on a >=3 real-season gap; an
         # un-retirement (contiguous new id) stays one career, a different player
@@ -327,11 +348,16 @@ def main():
     os.makedirs(f"{ROOT}/out", exist_ok=True)
     json.dump({"careers": careers, "fetched": fetched_at}, open(OUT, "w"),
               separators=(",", ":"))
+    srows = sum(len(v) for v in shoot.values())
+    json.dump({"years": shoot}, open(f"{ROOT}/out/season_shooting.json", "w"),
+              separators=(",", ":"))
+    print(f"season shooting: {srows} player-season rows across {len(shoot)} years")
     for m in missing:
         print(f"  !! no stats page: {m}")
     budget_note = f", {stats['skipped']} skipped (time budget)" if stats["skipped"] else ""
+    bf_note = f", {stats['backfilled']} rows-backfilled" if stats["backfilled"] else ""
     print(f"careers: {len(careers)} ({stats['fetched']} fetched, "
-          f"{stats['cached']} from cache{budget_note})")
+          f"{stats['cached']} from cache{budget_note}{bf_note})")
     print(f"wrote {OUT} ({os.path.getsize(OUT):,} bytes); cache {len(cache)} retired stints")
     if len(careers) < 1500:
         sys.exit(f"ERROR: only {len(careers)} careers — refusing to continue.")
