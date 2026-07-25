@@ -127,6 +127,11 @@ jobs:
           print(f"[records] {len(careers)} careers, {act} active")
           if len(careers) < 1500 or act < 200:
               sys.exit("ERROR: career records look incomplete — refusing to publish.")
+          shoot = json.load(open("out/season_shooting.json"))["years"]
+          nrows = sum(len(v) for v in shoot.values())
+          print(f"[adv] season shooting: {nrows} player-season rows, {len(shoot)} years")
+          if nrows < 12000:
+              sys.exit("ERROR: season shooting looks incomplete — refusing to publish.")
           print("sanity check passed")
           PY
 

@@ -27,6 +27,24 @@ LEAGUES = {
 LEAGUE = "ndl" if "--league" in sys.argv and sys.argv[sys.argv.index("--league") + 1] == "ndl" else "sln"
 CFG = LEAGUES[LEAGUE]
 ds = json.load(open(f"{ROOT}/out/{CFG['data']}"))
+
+# Per-season raw shooting (G,FG,FGA,FT,FTA,3P,3PA) from the player stats pages
+# (emitted by scrape_careers.py) -> baked onto each player row as `sh` so the
+# Advanced view can compute TS%/eFG%/3PAr/FTr client-side. SLN only: the NDL
+# has no careers pipeline, so its Advanced view shows just the rate metrics.
+_sf = f"{ROOT}/out/season_shooting.json"
+if LEAGUE == "sln" and os.path.exists(_sf):
+    _shoot = json.load(open(_sf))["years"]
+    _yr = {s["key"]: str(s["order"]) for s in ds["seasons"]}
+    _n = 0
+    for p in ds["players"]:
+        sh = _shoot.get(_yr.get(p["season"], ""), {}).get(str(p["id"]))
+        if sh and p.get("g"):
+            p["sh"] = sh
+            _n += 1
+    _pl = sum(1 for p in ds["players"] if p.get("g"))
+    print(f"advanced shooting: joined {_n}/{_pl} played player-seasons")
+
 DATA_JS = json.dumps(ds, separators=(",", ":"))
 # Build time shown to readers, in US Pacific (auto PST/PDT via the tz database)
 BUILT = datetime.datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%b %d, %Y · %-I:%M %p %Z")
@@ -84,6 +102,11 @@ __SWITCH_CSS__
     background:var(--accent);color:#fff;border-radius:7px;cursor:pointer}
   button.act.ghost{background:#fff;color:var(--accent)}
   button.act:disabled{opacity:.4;cursor:not-allowed}
+  .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{font:inherit;font-weight:600;padding:7px 12px;border:none;background:#fff;
+    color:var(--ink);cursor:pointer}
+  .seg button+button{border-left:1px solid var(--line)}
+  .seg button.on{background:var(--accent);color:#fff}
   .tablewrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;
     overflow:auto;box-shadow:0 1px 2px rgba(20,24,33,.04);max-height:calc(100vh - 250px)}
   table{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
@@ -144,6 +167,8 @@ __SWITCH_CSS__
 </header>
 <div class="wrap">
   <div class="bar">
+    <div class="fld"><label>View</label>
+      <div class="seg"><button id="mBasic" class="on">Basic</button><button id="mAdv">Advanced</button></div></div>
     <div class="fld"><label for="season">Year</label>
       <select id="season"></select></div>
     <div class="fld"><label for="mpg">Minutes (MPG)</label>
@@ -179,7 +204,7 @@ __SWITCH_CSS__
       <span><span class="sw" style="background:var(--hl3)"></span>Top 3</span>
       <span><span class="sw" style="background:var(--hl5)"></span>Top 5</span>
       <span><span class="sw" style="background:var(--hl10)"></span>Top 10</span>
-      <span style="color:#9aa4b2">· TPG = fewest (20+ MPG); FG/FT/3P leaders need 10+ MPG · 🏅 awards · 🏆 champion · 📊 compare years</span>
+      <span style="color:#9aa4b2" id="legendNote">· TPG = fewest (20+ MPG); FG/FT/3P leaders need 10+ MPG · 🏅 awards · 🏆 champion · 📊 compare years</span>
     </div>
     <div class="tablewrap">
       <table id="tbl">
@@ -206,6 +231,29 @@ const RECORDS = DS.records||{};   // season -> {roster#: [wins, losses]}
 const SITE='__SRC_SITE__';
 const el = (id)=>document.getElementById(id);
 
+// ---- advanced metrics, derived once at load ----
+// Rate metrics come straight from the roster per-game data; shooting-efficiency
+// metrics need raw attempts, baked as p.sh = [G,FG,FGA,FT,FTA,3P,3PA] from the
+// player stats pages (SLN only). Points = 2·FG + 3P + FT (exact).
+DS.players.forEach(p=>{
+  if(!p.g) return;                                  // unplayed -> all stay '—'
+  p.stk=(p.spg||0)+(p.bpg||0);
+  p.sto=p.tpg>0?p.stk/p.tpg:null;                   // undefined at 0 TO
+  p.ato=p.tpg>0?(p.apg||0)/p.tpg:null;
+  const m=p.mpg, f36=v=>(m>0&&v!==null&&v!==undefined)?v/m*36:null;
+  p.p36=f36(p.ppg); p.r36=f36(p.rpg); p.a36=f36(p.apg);
+  p.s36=f36(p.spg); p.b36=f36(p.bpg); p.t36=f36(p.tpg);
+  p.val=(p.ppg||0)+0.4*(p.rpg||0)+2.5*(p.spg||0)+2.5*(p.bpg||0)-1.5*(p.tpg||0)+0.1*(p.apg||0);
+  if(p.sh){
+    const [g,fg,fga,ft,fta,tp,tpa]=p.sh, pts=2*fg+tp+ft, tsa=fga+0.44*fta;
+    p.ts =tsa>0 ? pts/(2*tsa)      : null;
+    p.efg=fga>0 ? (fg+0.5*tp)/fga  : null;
+    p.par=fga>0 ? tpa/fga          : null;
+    p.ftr=fga>0 ? fta/fga          : null;
+  }
+});
+const HAS_SH = DS.players.some(p=>p.sh);
+
 // season key -> year number / label
 const YEAR={}, PLAYED={};
 DS.seasons.forEach(s=>{ YEAR[s.key]=s.order; PLAYED[s.key]=s.played!==false; });
@@ -228,7 +276,7 @@ function playerUrl(p){ return p.season==='current'
 function teamUrl(p){ return p.season==='current'
   ? `${SITE}/rosters/roster${p.rn}.htm` : `${SITE}/history/${p.season}/rosters/roster${p.rn}.htm`; }
 
-const COLS = [
+const BASIC_COLS = [
   {k:'rk',  t:'#'},
   {k:'name',t:'Player',txt:true},
   {k:'pos', t:'Pos',  txt:true},
@@ -248,6 +296,31 @@ const COLS = [
   {k:'ftp', t:'FT%',  pct:true},
   {k:'tpp', t:'3P%',  pct:true},
 ];
+const ADV_COLS = [
+  {k:'rk',  t:'#'},
+  {k:'name',t:'Player',txt:true},
+  {k:'pos', t:'Pos',  txt:true},
+  {k:'team',t:'Team', txt:true},
+  {k:'g',   t:'G'},
+  {k:'mpg', t:'MPG',  d:1},
+  {k:'stk', t:'STK',  d:1, tip:'Stocks — steals + blocks per game'},
+  {k:'sto', t:'S/TO', d:2, tip:'Stocks per turnover'},
+  {k:'ato', t:'A/TO', d:2, tip:'Assists per turnover'},
+  {k:'p36', t:'P36',  d:1, tip:'Points per 36 minutes'},
+  {k:'r36', t:'R36',  d:1, tip:'Rebounds per 36 minutes'},
+  {k:'a36', t:'A36',  d:1, tip:'Assists per 36 minutes'},
+  {k:'s36', t:'S36',  d:1, tip:'Steals per 36 minutes'},
+  {k:'b36', t:'B36',  d:1, tip:'Blocks per 36 minutes'},
+  {k:'t36', t:'TO36', d:1, tip:'Turnovers per 36 minutes — fewer is better'},
+  ...(HAS_SH ? [
+  {k:'ts',  t:'TS%',  pct:true, tip:'True shooting % — PTS / (2 × (FGA + 0.44·FTA))'},
+  {k:'efg', t:'eFG%', pct:true, tip:'Effective FG% — (FG + 0.5·3P) / FGA'},
+  {k:'par', t:'3PAr', pct:true, tip:'Three-point attempt rate — 3PA / FGA'},
+  {k:'ftr', t:'FTr',  pct:true, tip:'Free-throw rate — FTA / FGA'}] : []),
+  {k:'val', t:'VAL',  d:1, tip:'Composite value — PPG + 0.4·RPG + 2.5·SPG + 2.5·BPG − 1.5·TPG + 0.1·APG'},
+];
+let MODE='basic';
+const cols=()=> MODE==='adv' ? ADV_COLS : BASIC_COLS;
 // stats eligible for leader-highlighting (G and MPG excluded)
 const HILITE = [
   {k:'ppg',dir:'high'}, {k:'rpg',dir:'high'}, {k:'apg',dir:'high'},
@@ -255,6 +328,17 @@ const HILITE = [
   {k:'tpg',dir:'low', minMpg:20},
   {k:'fgp',dir:'high',minMpg:10}, {k:'ftp',dir:'high',minMpg:10}, {k:'tpp',dir:'high',minMpg:10},
 ];
+// advanced view: per-36 and ratio leaders need real minutes or they're noise;
+// TO36 mirrors the TPG "fewest" rule; 3PAr/FTr are shot-diet styles, not leaders
+const HILITE_ADV = [
+  {k:'stk',dir:'high'}, {k:'sto',dir:'high',minMpg:15}, {k:'ato',dir:'high',minMpg:15},
+  {k:'p36',dir:'high',minMpg:15}, {k:'r36',dir:'high',minMpg:15}, {k:'a36',dir:'high',minMpg:15},
+  {k:'s36',dir:'high',minMpg:15}, {k:'b36',dir:'high',minMpg:15},
+  {k:'t36',dir:'low', minMpg:20},
+  {k:'ts',dir:'high',minMpg:10}, {k:'efg',dir:'high',minMpg:10},
+  {k:'val',dir:'high'},
+];
+const hilite=()=> MODE==='adv' ? HILITE_ADV : HILITE;
 const GOOD_UP = {ppg:1,rpg:1,apg:1,spg:1,bpg:1,fgp:1,ftp:1,tpp:1,tpg:-1}; // for compare deltas
 
 let sortKey='ppg', sortDir=-1;
@@ -289,7 +373,7 @@ const ABIL_FULL={In:'Inside',Out:'Outside',Hn:'Handling',Df:'Defense',Reb:'Rebou
 function computeRanks(seasonKey){
   const pool=DS.players.filter(p=>p.season===seasonKey);
   const ranks={};
-  HILITE.forEach(h=>{
+  hilite().forEach(h=>{
     // only players who've actually played qualify (also stops an unplayed
     // season, where everything is 0.0, from highlighting every cell)
     const q=pool.filter(p=> p.g>0 && p[h.k]!==null && p[h.k]!==undefined && (!h.minMpg || (p.mpg!==null&&p.mpg>=h.minMpg)));
@@ -323,9 +407,10 @@ function tableRows(){
 }
 function buildHead(){
   const hr=el('hrow'); hr.innerHTML='';
-  COLS.forEach(c=>{
+  cols().forEach(c=>{
     const th=document.createElement('th');
     th.textContent=c.t; if(c.txt) th.className='txt';
+    if(c.tip) th.title=c.tip;
     if(c.k==='rk'){ th.style.cursor='default'; hr.appendChild(th); return; }
     const ar=document.createElement('span'); ar.className='ar'; ar.textContent='▾'; th.appendChild(ar);
     if(c.k===sortKey){ th.classList.add('sort'); ar.textContent = sortDir<0?'▾':'▴'; }
@@ -350,7 +435,7 @@ function renderTable(){
   rows.forEach((p,i)=>{
     const tr=document.createElement('tr');
     let html='';
-    COLS.forEach(c=>{
+    cols().forEach(c=>{
       if(c.k==='rk'){ html+=`<td class="txt rk">${i+1}</td>`; return; }
       if(c.k==='name'){ html+=`<td class="txt name"><a href="${playerUrl(p)}" target="_blank" rel="noopener">${esc(p.name)}</a>`
         +trophy(p)+`<button class="cmp" title="Compare ${esc(p.name)} across years" data-nm="${esc(p.name)}">📊</button></td>`; return; }
@@ -526,6 +611,24 @@ seasonSel.onchange=()=>{ buildFacets(); render(); };
 el('mpg').onchange=render; el('team').onchange=render; el('pos').onchange=render;
 el('rec').onchange=render; el('q').oninput=render;
 el('home').onclick=()=>{ closePlayer(); };
+
+// --- Basic / Advanced view toggle ---
+const LEGEND_BASIC = el('legendNote').textContent;
+const LEGEND_ADV = '· TO36 = fewest (20+ MPG) · per-36 & ratio leaders need 15+ MPG'
+  + (HAS_SH ? '; TS/eFG need 10+ MPG' : '')
+  + ' · hover a column header for its definition'
+  + (HAS_SH ? '' : ' · TS%/eFG% need shot attempts, which the league only publishes for SLN');
+function setMode(m){
+  if(MODE===m) return;
+  MODE=m;
+  el('mBasic').classList.toggle('on', m==='basic');
+  el('mAdv').classList.toggle('on', m==='adv');
+  el('legendNote').textContent = m==='adv' ? LEGEND_ADV : LEGEND_BASIC;
+  if(!cols().some(c=>c.k===sortKey)){ sortKey = m==='adv' ? 'val' : 'ppg'; sortDir=-1; }
+  render();
+}
+el('mBasic').onclick=()=>setMode('basic');
+el('mAdv').onclick=()=>setMode('adv');
 
 // --- optional on-demand "Refresh now" button (via Cloudflare Worker relay) ---
 const WORKER_URL="__WORKER_URL__";
