@@ -243,7 +243,6 @@ DS.players.forEach(p=>{
   const m=p.mpg, f36=v=>(m>0&&v!==null&&v!==undefined)?v/m*36:null;
   p.p36=f36(p.ppg); p.r36=f36(p.rpg); p.a36=f36(p.apg);
   p.s36=f36(p.spg); p.b36=f36(p.bpg); p.t36=f36(p.tpg);
-  p.val=(p.ppg||0)+0.4*(p.rpg||0)+2.5*(p.spg||0)+2.5*(p.bpg||0)-1.5*(p.tpg||0)+0.1*(p.apg||0);
   if(p.sh){
     const [g,fg,fga,ft,fta,tp,tpa]=p.sh, pts=2*fg+tp+ft, tsa=fga+0.44*fta;
     p.ts =tsa>0 ? pts/(2*tsa)      : null;
@@ -317,7 +316,6 @@ const ADV_COLS = [
   {k:'efg', t:'eFG%', pct:true, tip:'Effective FG% — (FG + 0.5·3P) / FGA'},
   {k:'par', t:'3PAr', pct:true, tip:'Three-point attempt rate — 3PA / FGA'},
   {k:'ftr', t:'FTr',  pct:true, tip:'Free-throw rate — FTA / FGA'}] : []),
-  {k:'val', t:'VAL',  d:1, tip:'Composite value — PPG + 0.4·RPG + 2.5·SPG + 2.5·BPG − 1.5·TPG + 0.1·APG'},
 ];
 let MODE='basic';
 const cols=()=> MODE==='adv' ? ADV_COLS : BASIC_COLS;
@@ -336,7 +334,6 @@ const HILITE_ADV = [
   {k:'s36',dir:'high',minMpg:15}, {k:'b36',dir:'high',minMpg:15},
   {k:'t36',dir:'low', minMpg:20},
   {k:'ts',dir:'high',minMpg:10}, {k:'efg',dir:'high',minMpg:10},
-  {k:'val',dir:'high'},
 ];
 const hilite=()=> MODE==='adv' ? HILITE_ADV : HILITE;
 const GOOD_UP = {ppg:1,rpg:1,apg:1,spg:1,bpg:1,fgp:1,ftp:1,tpp:1,tpg:-1}; // for compare deltas
@@ -624,7 +621,7 @@ function setMode(m){
   el('mBasic').classList.toggle('on', m==='basic');
   el('mAdv').classList.toggle('on', m==='adv');
   el('legendNote').textContent = m==='adv' ? LEGEND_ADV : LEGEND_BASIC;
-  if(!cols().some(c=>c.k===sortKey)){ sortKey = m==='adv' ? 'val' : 'ppg'; sortDir=-1; }
+  if(!cols().some(c=>c.k===sortKey)){ sortKey = m==='adv' ? 'p36' : 'ppg'; sortDir=-1; }
   render();
 }
 el('mBasic').onclick=()=>setMode('basic');
