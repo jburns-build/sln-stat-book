@@ -62,7 +62,15 @@ URLs key on a season *code*, not the year.
 | Season awards | `/regssnawards.htm` | `/history/{code}/regssnawards.htm` | season |
 | Playoffs / champion | `/playoffs.htm` | `/history/{code}/playoffs.htm` | season + rn |
 | All-Star box score | — | `/history/{code}/boxes/allstar.html` | by name |
+| Day scoreboard | `/boxes/day{D}.htm` | `/history/{code}/boxes/day{D}.htm` | links each game's box |
+| Per-game box score | `/boxes/{D}-{G}.html` | `/history/{code}/boxes/{D}-{G}.html` | by name |
 | Transactions | `/transactions.htm` | `/history/{code}/transactions.htm` | season + day |
+| League schedule | `/leagueschedule.htm` | `/history/{code}/leagueschedule.htm` | reg-season day list |
+| Divisional standings | `/divstand.htm` | (historical unverified) | W/L/L10/GB by division |
+| Playoff standings | `/playstand.htm` | (historical unverified) | by conference, top-8 starred |
+| Injured reserve | `/ir.htm` | (historical unverified) | league-wide; duration 0 = healed-not-activated (real injuries: roster page `#injuries`) |
+
+East = rn1–15, West = rn16–29; divisions: Atlantic rn1–7, Central rn8–15, Midwest rn16–22, Pacific rn23–29.
 
 > **Current-page year skew.** Top-level `/regssnawards.htm` and `/playoffs.htm` show the *last completed*
 > season (2037) until 2038 finishes. Always guard on the year the page prints.
@@ -109,6 +117,21 @@ URLs key on a season *code*, not the year.
 - **Gap:** 1996, 1997, 2000, 2005 boxes are missing — those games happened (see player award boxes) but
   aren't archived.
 
+### Per-game box scores — `boxes/{D}-{G}.html`
+- Full stat lines for every game: two team tables of
+  `Name, POS, MIN, FG, FGA, 3P, 3PA, FT, FTA, REB, A, PF, ST, TO, BL, PTS`.
+- **MIN and PF are published nowhere else** on the site.
+- Names are **unlinked** (like the All-Star boxes) → join by (season, name); only 5
+  (season, name) pairs in 42 seasons are ambiguous.
+- **Regular-season/playoff boundary:** the day list linked from `leagueschedule.htm` is
+  regular season only; playoff boxes live in the same `boxes/` dir but are off-schedule.
+- Coverage mirrors the All-Star archive: 1999 + 2001–2037 + current; nothing for
+  1996/1997/2000/2005. **14 individual box files are missing upstream** (404/empty),
+  across 9 days in seasons 1999/2001/2002/2004/2024.
+- Summing boxes gives **exact** career Reb/Ast/Stl/Blk/TO (validated to-the-unit against
+  the official records page: Jrue Holiday 3,425 steals; Luka Doncic 15,587 assists
+  through 2037).
+
 ### Transactions — `transactions.htm`
 - Flat 4-column table: `Season, Day, Team, Action`; rows alternate bgcolor.
 - Each trade appears **twice** (once per team's perspective) → dedup by `(day, teams, assets)`.
@@ -144,7 +167,13 @@ Implemented in `scripts/scrape_careers.py` (`unit()`).
 
 ### Other conventions
 - **Mid-season trades:** a traded player's full-season stats are credited to their **end-of-season team**. The
-  site never splits one season's line across teams.
+  site never splits one season's line across teams. But their **season G can exceed 82** — games accumulate
+  across both teams' schedules (Jrue Holiday: 92 G in 2016) — so never infer season length from max player G;
+  a season is 82 team games (29 teams → 1,189 league games).
+- **Official career-records page semantics:** each row is `value | holder | pos | year`. For an active record
+  holder the value runs **through the last completed season** — the in-progress season rolls in only when it
+  ends. A record can be de facto broken mid-season while the page still shows the old holder (LaMelo Ball
+  passed Jrue Holiday in steals mid-2038: 3,440 exact vs 3,425).
 - **Franchise = roster number.** `rn` is stable through renames — `rn3` is the Nets / "Brooklyn Ballers". Track
   franchise history by rn, not team name.
 - **Ability grades:** In/Out/Hn/Df/Reb/Pot on an F…A+ scale, consistent across every era.
@@ -166,6 +195,8 @@ Implemented in `scripts/scrape_careers.py` (`unit()`).
 | All-Star selections | `boxes/allstar.html` | Count unlinked names by year; mind the 1996/97/2000/2005 gap |
 | Trades in a season | `/history/{Y}/transactions.htm` | Dedup double-listed rows; filter day ≤ 122 for in-season |
 | Player abilities / grades | `roster{rn}.htm` | Player Abilities table, that season's snapshot |
+| Exact steals/rebounds/etc. | `boxes/{D}-{G}.html` | Sum box lines by name; day list from `leagueschedule.htm`; mind the 4 gap years + 14 lost boxes |
+| Minutes or fouls totals | `boxes/{D}-{G}.html` | MIN and PF exist only in the boxes |
 
 ---
 
