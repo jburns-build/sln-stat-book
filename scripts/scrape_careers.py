@@ -159,6 +159,9 @@ def main():
     _bp = f"{ROOT}/data/box_agg.json"
     _box = json.load(open(_bp))["seasons"] if os.path.exists(_bp) else {}
     BOX = {c: s["players"] for c, s in _box.items() if s.get("complete")}
+    # the live season's boxes are used too (exact up to the last nightly pull;
+    # only the newer tail of games is estimated)
+    CUR = _box.get("current", {}).get("players", {})
     _ids = defaultdict(set)
     for p in players:
         _ids[(p["season"], p["name"])].add(p["id"])
@@ -169,7 +172,7 @@ def main():
 
     def box_season(code, name):
         """Exact [g,min,reb,ast,stl,blk,to,pf] for a season, or None."""
-        t = BOX.get(code, {}).get(name)
+        t = (CUR if code == "current" else BOX.get(code, {})).get(name)
         if t is None or (code, name) in AMBIG:
             return None
         tot = [0] * 8
@@ -177,6 +180,9 @@ def main():
             for j in range(8):
                 tot[j] += a[j]
         return tot
+
+    RATES = [("reb", "rpg"), ("ast", "apg"), ("stl", "spg"),
+             ("blk", "bpg"), ("tov", "tpg")]
 
     # name -> {id -> {'years':set, 'season':last code for that id, 'y':last yr, 'pos'}}
     byname = defaultdict(dict)
@@ -362,11 +368,20 @@ def main():
                         if bx and bx[0] == g:
                             for k, j in BOXIX.items():
                                 hyb[k] += bx[j]
+                        elif code == "current" and bx:
+                            # live season: exact through the last box pull,
+                            # estimate only the newer tail of games (boxes can
+                            # also run a game AHEAD of the roster scrape —
+                            # those are real games, keep them, tail = 0)
+                            tail = max(0, g - bx[0])
+                            for k, j in BOXIX.items():
+                                hyb[k] += bx[j]
+                            for k, pk in RATES:
+                                hyb[k] += (row.get(pk) or 0) * tail
+                            dgames += tail
                         else:
                             dgames += g
-                            for k, pk in [("reb", "rpg"), ("ast", "apg"),
-                                          ("stl", "spg"), ("blk", "bpg"),
-                                          ("tov", "tpg")]:
+                            for k, pk in RATES:
                                 hyb[k] += (row.get(pk) or 0) * g
                         covered += g
                 resid = car["games"] - covered

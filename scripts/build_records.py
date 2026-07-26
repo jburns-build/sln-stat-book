@@ -160,6 +160,11 @@ __SWITCH_CSS__
     <div class="note" id="note"></div>
   </div>
   <h2 class="sect">Career totals <span>top 10 per category</span></h2>
+  <div id="estnote" hidden style="margin:-2px 2px 12px;font-size:12.5px;color:#8b95a3;line-height:1.5">
+    Rebounds, assists, steals, blocks &amp; turnovers are counted from game box scores.
+    <b>*</b> = includes estimated games — hover the number to see how many. Estimates cover the
+    <b>1996, 1997, 2000 &amp; 2005</b> seasons (no box archive), <b>14</b> individual lost box scores,
+    and any live-season games newer than the nightly box pull.</div>
   <div class="cards" id="cards"></div>
   <h2 class="sect">Per-game (career) <span>top 10 · minimum 100 games</span></h2>
   <div class="cards" id="pergame"></div>
@@ -181,6 +186,7 @@ const el=(id)=>document.getElementById(id);
 const C = DS.careers;
 // hybrid totals present? (dg = games whose stats are derived, 0 = fully exact)
 const HYB = C.some(p=>p.dg!==undefined);
+el('estnote').hidden = !HYB;
 
 // Same categories the league's own Career Records page lists a single leader for.
 // exact:false -> derived from published per-game averages (~0.1% rounding).
@@ -290,14 +296,13 @@ function render(){
     const rows=topTen(c.k);
     const hybCat = !c.exact && HYB;
     let h=`<div class="card"><h3>${c.t}`
-      + (c.exact ? '' : hybCat
-        ? `<span class="approx" title="Counted exactly from the per-game box scores (archived 1999 and 2001–2037). Rows marked ≈ include games without boxes — 1996, 1997, 2000, 2005 or the season in progress — filled from published per-game averages.">box-exact</span>`
+      + (c.exact || hybCat ? ''
         : `<span class="approx" title="Rebounds, assists, steals, blocks and turnovers are only published as per-game averages, so career totals are derived (±0.1%). Games, points, FG, FT, 3P and double/triple doubles are exact.">≈ derived</span>`)
       + `</h3>`;
     rows.forEach((p,i)=>{
       let v=fmt(p[c.k]||0);
       if(hybCat && (p.dg||0)>0)
-        v+=`<span class="approx" style="margin-left:6px" title="${Math.round(p.dg)} of ${Math.round(p.games)} games have no box scores; that share is derived from per-game averages.">≈</span>`;
+        v=`<span title="${Math.round(p.dg)} of ${Math.round(p.games)} games are estimated (no box scores for those games)">${v}*</span>`;
       h+=rowHtml(p,i,v,q);
     });
     if(!rows.length) h+=`<div class="row"><span class="nm" style="color:#8b95a3;font-weight:400">No data</span></div>`;
