@@ -150,6 +150,34 @@ def main():
     years = sorted({yr(p["season"]) for p in players})
     idx = {y: i for i, y in enumerate(years)}    # real-season ordinal (no 1998)
 
+    # Exact reb/ast/stl/blk/tov from the per-game box scores (scrape_boxes.py),
+    # keyed season -> player NAME -> team -> [g,min,reb,ast,stl,blk,to,pf].
+    # Only COMPLETE seasons are used (the live season stays derived until it
+    # archives). Box names are unlinked, so (season, name) pairs appearing with
+    # 2+ ids in the roster data are ambiguous -> those player-seasons also stay
+    # derived (5 such pairs across 42 seasons, none near a leaderboard).
+    _bp = f"{ROOT}/data/box_agg.json"
+    _box = json.load(open(_bp))["seasons"] if os.path.exists(_bp) else {}
+    BOX = {c: s["players"] for c, s in _box.items() if s.get("complete")}
+    _ids = defaultdict(set)
+    for p in players:
+        _ids[(p["season"], p["name"])].add(p["id"])
+    AMBIG = {k for k, v in _ids.items() if len(v) > 1}
+    # roster per-season averages: the derived fallback for non-box seasons
+    ROST = {(p["season"], p["id"]): p for p in players}
+    BOXIX = {"reb": 2, "ast": 3, "stl": 4, "blk": 5, "tov": 6}
+
+    def box_season(code, name):
+        """Exact [g,min,reb,ast,stl,blk,to,pf] for a season, or None."""
+        t = BOX.get(code, {}).get(name)
+        if t is None or (code, name) in AMBIG:
+            return None
+        tot = [0] * 8
+        for a in t.values():                     # sum a traded player's teams
+            for j in range(8):
+                tot[j] += a[j]
+        return tot
+
     # name -> {id -> {'years':set, 'season':last code for that id, 'y':last yr, 'pos'}}
     byname = defaultdict(dict)
     for p in players:
@@ -314,6 +342,44 @@ def main():
             car = {"name": name}
             for f in SUM_FIELDS:
                 car[f] = sum(u[1].get(f, 0) or 0 for u in units)
+            # Hybrid reb/ast/stl/blk/tov: box-score seasons are EXACT counts;
+            # non-box seasons (1996/97/2000/05, the live season, ambiguous
+            # names) stay derived from roster per-game averages. dg = games in
+            # the derived component (0 = fully exact). Seasons on the stats
+            # page but absent from rosters (the unarchived 1998) are filled at
+            # the career's own average rate and counted as derived.
+            if BOX:
+                hyb = {k: 0.0 for k in BOXIX}
+                dgames = covered = 0
+                for pid in seg["ids"]:
+                    for y in sorted(idmap[pid]["pyears"]):
+                        code = code_for_year(y)
+                        row = ROST.get((code, pid))
+                        if row is None:
+                            continue
+                        g = int(row.get("g") or 0)
+                        bx = box_season(code, name)
+                        if bx and bx[0] == g:
+                            for k, j in BOXIX.items():
+                                hyb[k] += bx[j]
+                        else:
+                            dgames += g
+                            for k, pk in [("reb", "rpg"), ("ast", "apg"),
+                                          ("stl", "spg"), ("blk", "bpg"),
+                                          ("tov", "tpg")]:
+                                hyb[k] += (row.get(pk) or 0) * g
+                        covered += g
+                resid = car["games"] - covered
+                if 0 <= resid:
+                    if resid and car["games"]:
+                        for k in BOXIX:
+                            hyb[k] += car[k] * resid / car["games"]
+                        dgames += resid
+                    for k in BOXIX:
+                        car[k] = round(hyb[k], 1)
+                    car["dg"] = int(dgames)
+                # resid < 0 would mean box/roster games exceed the stats page's
+                # own career -> distrust the hybrid, keep the page-derived total
             # per-game averages: read the page's official Career-row values.
             # One stint -> exact page value; bundled un-retirements -> games-weighted.
             pg = {}

@@ -179,6 +179,8 @@ const DS = JSON.parse(document.getElementById('data').textContent);
 const SITE='https://www.simleaguenirvana.com';
 const el=(id)=>document.getElementById(id);
 const C = DS.careers;
+// hybrid totals present? (dg = games whose stats are derived, 0 = fully exact)
+const HYB = C.some(p=>p.dg!==undefined);
 
 // Same categories the league's own Career Records page lists a single leader for.
 // exact:false -> derived from published per-game averages (~0.1% rounding).
@@ -286,10 +288,18 @@ function render(){
   const cards=el('cards'); cards.innerHTML='';
   CATS.forEach(c=>{
     const rows=topTen(c.k);
+    const hybCat = !c.exact && HYB;
     let h=`<div class="card"><h3>${c.t}`
-      + (c.exact?'':`<span class="approx" title="Rebounds, assists, steals, blocks and turnovers are only published as per-game averages, so career totals are derived (±0.1%). Games, points, FG, FT, 3P and double/triple doubles are exact.">≈ derived</span>`)
+      + (c.exact ? '' : hybCat
+        ? `<span class="approx" title="Counted exactly from the per-game box scores (archived 1999 and 2001–2037). Rows marked ≈ include games without boxes — 1996, 1997, 2000, 2005 or the season in progress — filled from published per-game averages.">box-exact</span>`
+        : `<span class="approx" title="Rebounds, assists, steals, blocks and turnovers are only published as per-game averages, so career totals are derived (±0.1%). Games, points, FG, FT, 3P and double/triple doubles are exact.">≈ derived</span>`)
       + `</h3>`;
-    rows.forEach((p,i)=> h+=rowHtml(p,i,fmt(p[c.k]||0),q));
+    rows.forEach((p,i)=>{
+      let v=fmt(p[c.k]||0);
+      if(hybCat && (p.dg||0)>0)
+        v+=`<span class="approx" style="margin-left:6px" title="${Math.round(p.dg)} of ${Math.round(p.games)} games have no box scores; that share is derived from per-game averages.">≈</span>`;
+      h+=rowHtml(p,i,v,q);
+    });
     if(!rows.length) h+=`<div class="row"><span class="nm" style="color:#8b95a3;font-weight:400">No data</span></div>`;
     h+=`</div>`;
     cards.insertAdjacentHTML('beforeend',h);
