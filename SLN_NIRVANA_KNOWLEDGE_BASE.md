@@ -3,7 +3,9 @@
 Where every stat lives on `simleaguenirvana.com`, how each page is shaped, and the quirks that bite.
 Compiled from the scrapers in `scripts/` and verified against the live site.
 
-Browsable version: https://claude.ai/code/artifact/fcf8c7ba-934c-438d-8943-8ad658570c8e
+Browsable version: https://slnstatbook.com/guide/
+This file is the **machine-readable twin** — point your AI assistant at
+https://slnstatbook.com/guide/guide.md (or this repo file) to give it the full site map for running analysis.
 
 | | |
 |---|---|
@@ -68,7 +70,8 @@ URLs key on a season *code*, not the year.
 | League schedule | `/leagueschedule.htm` | `/history/{code}/leagueschedule.htm` | reg-season day list |
 | Divisional standings | `/divstand.htm` | (historical unverified) | W/L/L10/GB by division |
 | Playoff standings | `/playstand.htm` | (historical unverified) | by conference, top-8 starred |
-| Injured reserve | `/ir.htm` | (historical unverified) | league-wide; duration 0 = healed-not-activated (real injuries: roster page `#injuries`) |
+| Injuries (league-wide) | `/injuries.htm` | (historical unverified) | "Injured Players": Name/Team/Injury/Duration in days |
+| Injured Reserve | `/ir.htm` | (historical unverified) | **GM roster tool, not a medical report** — teams carry up to 15 players but only 12 playable; GMs stash up to 3 on IR. IR players may be healthy (duration 0 = healed, not yet activated). Real injuries: `/injuries.htm` or each roster page's `#injuries` table |
 
 East = rn1–15, West = rn16–29; divisions: Atlantic rn1–7, Central rn8–15, Midwest rn16–22, Pacific rn23–29.
 

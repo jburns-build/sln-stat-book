@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sim League Nirvana — Data Field Guide</title>
+<style>
+  :root{
+    --paper:#EEF0EF; --paper-2:#E4E7E6; --card:#F7F8F7;
+    --ink:#1A1F1E; --ink-2:#414947; --ink-3:#6B7371;
+    --line:#CBD0CE; --line-2:#DCE0DE;
+    --accent:#B4702A; --accent-soft:#F0E3D3;
+    --good:#3C7A56; --good-soft:#DCEBE1;
+    --warn:#A6472F; --warn-soft:#F2DED7;
+    --code-bg:#EAECEA; --code-ink:#3A423F;
+    --shadow:0 1px 2px rgba(20,30,25,.05),0 6px 20px rgba(20,30,25,.05);
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Segoe UI",system-ui,sans-serif;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#12161A; --paper-2:#0D1013; --card:#191E22;
+      --ink:#EAEDEB; --ink-2:#B4BCB9; --ink-3:#828C89;
+      --line:#2A3237; --line-2:#222A2E;
+      --accent:#DB9A55; --accent-soft:#2C231A;
+      --good:#6FB98C; --good-soft:#17251D;
+      --warn:#E08063; --warn-soft:#2A1B16;
+      --code-bg:#1E2429; --code-ink:#C7CFCB;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 26px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);
+    line-height:1.6;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .wrap{max-width:960px;margin:0 auto;padding:0 22px}
+  nav.bar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--paper) 88%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+  nav.bar .wrap{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:9px;padding-bottom:9px}
+  nav.bar .brand{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);
+    margin-right:8px;white-space:nowrap}
+  nav.bar a{font-family:var(--sans);font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--ink-2);text-decoration:none;padding:4px 8px;border-radius:5px;font-weight:600}
+  nav.bar a:hover{background:var(--accent-soft);color:var(--accent)}
+  nav.bar a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  header.top{padding:58px 0 34px;border-bottom:3px double var(--line)}
+  .eyebrow{font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--accent)}
+  h1{font-family:var(--serif);font-weight:700;font-size:clamp(38px,6.4vw,62px);line-height:1.02;
+    letter-spacing:-.015em;margin:.28em 0 .12em;text-wrap:balance}
+  .lede{font-size:clamp(17px,2.2vw,20px);color:var(--ink-2);max-width:60ch;margin:.4em 0 0}
+  .factstrip{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .fact{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 14px;
+    box-shadow:var(--shadow)}
+  .fact .k{font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-3);display:block}
+  .fact .v{font-family:var(--mono);font-size:14px;color:var(--ink);font-weight:500}
+  section{padding:44px 0;border-bottom:1px solid var(--line-2)}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin:0 0 20px}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;
+    padding-top:4px;min-width:2ch}
+  h2{font-family:var(--serif);font-weight:700;font-size:clamp(25px,3.6vw,33px);letter-spacing:-.01em;
+    margin:0;line-height:1.1;text-wrap:balance}
+  .sec-sub{color:var(--ink-2);font-size:16px;margin:.5em 0 0;max-width:66ch}
+  h3{font-family:var(--sans);font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-2);margin:30px 0 12px}
+  p{max-width:70ch}
+  a.inline{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft)}
+  a.inline:hover{border-bottom-color:var(--accent)}
+  code{font-family:var(--mono);font-size:.88em;background:var(--code-bg);color:var(--code-ink);
+    padding:2px 6px;border-radius:5px;white-space:nowrap}
+  .var{color:var(--accent);font-style:normal}
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);
+    background:var(--card)}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+  thead th{font-family:var(--sans);font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-3);text-align:left;padding:12px 16px;border-bottom:2px solid var(--line);
+    background:var(--paper-2);position:sticky;top:0}
+  td{padding:11px 16px;border-bottom:1px solid var(--line-2);vertical-align:top;color:var(--ink-2)}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:color-mix(in srgb,var(--accent-soft) 40%,transparent)}
+  td.mono,td .mono{font-family:var(--mono);font-size:12.5px;color:var(--ink);white-space:nowrap}
+  td.res{font-family:var(--sans);font-weight:600;color:var(--ink);white-space:nowrap}
+  .num{font-variant-numeric:tabular-nums}
+  table.season td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  table.season td:first-child{color:var(--accent);font-weight:600}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:6px}
+  .anat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 19px;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;gap:11px}
+  .anat h4{margin:0;font-family:var(--serif);font-size:19px;font-weight:700;letter-spacing:-.01em}
+  .anat .path{font-family:var(--mono);font-size:11.5px;color:var(--accent);word-break:break-all;
+    background:var(--accent-soft);padding:6px 9px;border-radius:6px;line-height:1.5}
+  .anat ul{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:7px}
+  .anat li{font-size:13.5px;line-height:1.45;color:var(--ink-2);padding-left:16px;position:relative}
+  .anat li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:1px;
+    background:var(--accent);transform:rotate(45deg)}
+  .anat .cols{font-family:var(--mono);font-size:11.5px;color:var(--code-ink);background:var(--code-bg);
+    padding:8px 10px;border-radius:6px;line-height:1.7;word-break:break-word}
+  .note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:14px 18px;
+    border-radius:0 9px 9px 0;margin:18px 0;font-size:14.5px}
+  .note.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+  .note.good{border-left-color:var(--good);background:var(--good-soft)}
+  .note .lbl{font-family:var(--sans);font-size:10.5px;font-weight:800;letter-spacing:.12em;
+    text-transform:uppercase;display:block;margin-bottom:4px}
+  .note.warn .lbl{color:var(--warn)} .note.good .lbl{color:var(--good)} .note .lbl{color:var(--accent)}
+  .tag{font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    padding:2px 7px;border-radius:20px;white-space:nowrap;display:inline-block}
+  .tag.exact{background:var(--good-soft);color:var(--good)}
+  .tag.approx{background:var(--warn-soft);color:var(--warn)}
+  table.play td:first-child{font-family:var(--serif);font-weight:700;color:var(--ink);font-size:14.5px}
+  table.play .mono{white-space:normal}
+  footer{padding:40px 0 64px;color:var(--ink-3);font-size:13px}
+  footer .wrap{display:flex;flex-direction:column;gap:6px}
+  footer b{color:var(--ink-2)}
+  @media (max-width:560px){
+    header.top{padding:40px 0 26px}
+    .sec-head{flex-direction:column;gap:4px}
+    nav.bar .brand{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+  html{scroll-behavior:smooth}
+  :target{scroll-margin-top:64px}
+</style>
+</head>
+<body>
+
+<nav class="bar"><div class="wrap">
+  <span class="brand">SLN::datamap</span>
+  <a href="#scope">Scope</a>
+  <a href="#seasons">Seasons</a>
+  <a href="#urls">URL Map</a>
+  <a href="#anatomy">Page Anatomy</a>
+  <a href="#rules">Conventions</a>
+  <a href="#playbook">Query Playbook</a>
+  <span style="margin-left:auto"></span>
+  <a href="https://slnstatbook.com/" title="Back to the Stat Book">← Stat Book</a>
+</div></nav>
+
+<header class="top"><div class="wrap">
+  <span class="eyebrow">Reverse-engineered site reference</span>
+  <h1>Sim League Nirvana — Data Field Guide</h1>
+  <p class="lede">Where every stat lives on <code>simleaguenirvana.com</code>, how each page is shaped,
+    and the quirks that bite. Built from the scrapers behind the SLN Stat Book and verified against the live site.</p>
+  <div class="factstrip">
+    <div class="fact"><span class="k">Base</span><span class="v">www.simleaguenirvana.com</span></div>
+    <div class="fact"><span class="k">Leagues</span><span class="v">SLN · NDL (/NDL/)</span></div>
+    <div class="fact"><span class="k">Seasons</span><span class="v">42 (1996–2038)</span></div>
+    <div class="fact"><span class="k">Teams / season</span><span class="v">~29</span></div>
+    <div class="fact"><span class="k">Encoding</span><span class="v">latin-1</span></div>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+<section id="scope">
+  <div class="sec-head"><span class="sec-num">01</span><div>
+    <h2>What the site is, and how to reach it</h2>
+    <p class="sec-sub">A classic static-HTML sim-league site. Two leagues share one layout; every stat page is a
+      plain <code>.htm/.html</code> file you can fetch directly.</p>
+  </div></div>
+  <p><b>Two leagues, same skeleton.</b> The main league <b>SLN</b> lives at the site root; the developmental
+    league <b>NDL</b> mirrors the exact same page layout under a <code>/NDL/</code> prefix. The same parsers work on both.</p>
+  <h3>The frameset trap</h3>
+  <p>On-site navigation runs through JavaScript <code>&lt;frameset&gt;</code> pages (e.g. <code>index2.htm</code>),
+    so the browser URL bar <em>never changes</em> as you click around. Don't scrape by watching the address bar —
+    go straight to the underlying files below. The site's own one-leader-per-category
+    <code>playercareerrecords.htm</code> is only reachable through that frameset nav.</p>
+  <div class="note warn"><span class="lbl">NDL — no history</span>
+    NDL publishes the <b>current season only</b>. Every <code>/NDL/history/…</code>, four-digit-year, or
+    <code>/archive/</code> path 404s. ~29 teams, ~350 players. When a season hasn't tipped off yet, games read
+    0-0 while age / contract / ability data is already populated.</div>
+</section>
+
+<section id="seasons">
+  <div class="sec-head"><span class="sec-num">02</span><div>
+    <h2>Season codes → calendar years</h2>
+    <p class="sec-sub">URLs key on a season <em>code</em>, not the year. The mapping is almost <code>2000+N</code> —
+      with three pre-2000 exceptions and one hole.</p>
+  </div></div>
+  <div class="tbl-wrap"><table class="season">
+    <thead><tr><th>Code</th><th>Year</th><th>Code</th><th>Year</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>96</td><td>1996</td><td>00</td><td>2000</td><td style="font-family:var(--serif)">Earliest three seasons are historical mirrors</td></tr>
+      <tr><td>97</td><td>1997</td><td>…</td><td>…</td><td style="font-family:var(--serif)"><code>NN</code> = <span class="num">2000</span>+<code>NN</code> for 00–37</td></tr>
+      <tr><td>98</td><td>— none —</td><td>37</td><td>2037</td><td style="font-family:var(--serif)">2037 = last <b>completed</b> season</td></tr>
+      <tr><td>99</td><td>1999</td><td>current</td><td>2038</td><td style="font-family:var(--serif)">2038 in progress — top-level, no <code>/history/</code></td></tr>
+    </tbody>
+  </table></div>
+  <div class="note warn"><span class="lbl">1998 happened — only its archive is missing</span>
+    <code>/history/98/</code> 404s, but player career-stats pages carry real 1998 season rows (331 players with
+    games), and career totals on those pages <em>include</em> 1998. For career-continuity math count seasons by
+    real-<em>archive</em> ordinal (96,97,99,00,01…), not by subtracting years.</div>
+</section>
+
+<section id="urls">
+  <div class="sec-head"><span class="sec-num">03</span><div>
+    <h2>The URL map</h2>
+    <p class="sec-sub">Every resource has a current-season form (top-level) and a historical form
+      (<code>/history/<span class="var">{code}</span>/…</code>). <code><span class="var">{rn}</span></code> = roster number ·
+      <code><span class="var">{id}</span></code> = player id.</p>
+  </div></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Resource</th><th>Current (2038)</th><th>Historical &nbsp;<code>{code}</code></th><th>Key</th></tr></thead>
+    <tbody>
+      <tr><td class="res">Team roster</td><td class="mono">/rosters/roster{rn}.htm</td><td class="mono">/history/{code}/rosters/roster{rn}.htm</td><td>season + rn</td></tr>
+      <tr><td class="res">Roster schedule</td><td class="mono">/rosters/roster{rn}sched.htm</td><td class="mono">/history/{code}/rosters/roster{rn}sched.htm</td><td>per-day W/L</td></tr>
+      <tr><td class="res">Player page</td><td class="mono">/players/player{id}.htm</td><td class="mono">/history/{code}/players/player{id}.htm</td><td>season + id</td></tr>
+      <tr><td class="res">Player career stats</td><td class="mono">/players/player{id}stats.htm</td><td class="mono">/history/{code}/players/player{id}stats.htm</td><td>season + id</td></tr>
+      <tr><td class="res">Season awards</td><td class="mono">/regssnawards.htm</td><td class="mono">/history/{code}/regssnawards.htm</td><td>season</td></tr>
+      <tr><td class="res">Playoffs / champion</td><td class="mono">/playoffs.htm</td><td class="mono">/history/{code}/playoffs.htm</td><td>season + rn</td></tr>
+      <tr><td class="res">All-Star box score</td><td class="mono">—</td><td class="mono">/history/{code}/boxes/allstar.html</td><td>by name</td></tr>
+      <tr><td class="res">Day scoreboard</td><td class="mono">/boxes/day{D}.htm</td><td class="mono">/history/{code}/boxes/day{D}.htm</td><td>links games</td></tr>
+      <tr><td class="res">Per-game box score</td><td class="mono">/boxes/{D}-{G}.html</td><td class="mono">/history/{code}/boxes/{D}-{G}.html</td><td>by name</td></tr>
+      <tr><td class="res">Transactions</td><td class="mono">/transactions.htm</td><td class="mono">/history/{code}/transactions.htm</td><td>season + day</td></tr>
+      <tr><td class="res">League schedule</td><td class="mono">/leagueschedule.htm</td><td class="mono">/history/{code}/leagueschedule.htm</td><td>reg-season days</td></tr>
+      <tr><td class="res">Divisional standings</td><td class="mono">/divstand.htm</td><td class="mono">(historical unverified)</td><td>W/L/L10/GB</td></tr>
+      <tr><td class="res">Playoff standings</td><td class="mono">/playstand.htm</td><td class="mono">(historical unverified)</td><td>top-8 starred</td></tr>
+      <tr><td class="res">Injuries (league-wide)</td><td class="mono">/injuries.htm</td><td class="mono">(historical unverified)</td><td>Name/Team/Injury/Days</td></tr>
+      <tr><td class="res">Injured Reserve</td><td class="mono">/ir.htm</td><td class="mono">(historical unverified)</td><td>GM roster tool — see §5</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><span class="lbl">Current-page year skew</span>
+    The top-level <code>/regssnawards.htm</code> and <code>/playoffs.htm</code> show the <em>last completed</em>
+    season (2037) until 2038 finishes. Always guard on the year the page prints, or you'll attribute 2037's
+    awards/champion to 2038. NDL: same patterns under <code>/NDL/…</code>, current season only.</div>
+</section>
+
+<section id="anatomy">
+  <div class="sec-head"><span class="sec-num">04</span><div>
+    <h2>Page anatomy</h2>
+    <p class="sec-sub">What each file actually contains, the columns that matter, and how to read them.</p>
+  </div></div>
+  <div class="cards">
+
+    <div class="anat">
+      <h4>Team roster</h4>
+      <div class="path">/history/{code}/rosters/roster{rn}.htm</div>
+      <ul>
+        <li>Team name = <code>&lt;title&gt;</code> minus " Roster".</li>
+        <li>9 tables on the page; the one you want literally contains "Player Statistics".</li>
+        <li>Percents are proportion strings (<code>.467</code>), not %.</li>
+        <li>Also carries a <b>Player Abilities</b> table: In/Out/Hn/Df/Reb/Pot, letter grades A+…F.</li>
+        <li>Player links point to <em>this</em> season's player pages — recycled ids never collide here.</li>
+      </ul>
+      <div class="cols">ID · Name · Pos · Games · MPG · PPG · RPG · APG · SPG · BPG · TPG · FG% · FT% · 3P%</div>
+    </div>
+
+    <div class="anat">
+      <h4>Player career stats <span class="tag exact">raw totals</span></h4>
+      <div class="path">/history/{code}/players/player{id}stats.htm</div>
+      <ul>
+        <li>Season-by-season with <b>raw makes/attempts</b> — the only place FG/FT/3P counts live.</li>
+        <li>Per-season rows begin with a 4-digit year; a final <b>Career:</b> row holds official per-game avgs.</li>
+        <li><b>Points aren't published</b> → compute <code>2·FG + 3P + FT</code> (exact).</li>
+        <li>Reb/Ast/Stl/Blk/TO only as per-game → sum <code>PG × Games</code> (≈0.1% rounding), or count the box scores for exact totals.</li>
+      </ul>
+      <div class="cols">Season · Team · Games · MPG · FG · FGA · FG% · FT · FTA · FT% · 3P · 3PA · 3P% · RPG · APG · SPG · BPG · TOPG</div>
+    </div>
+
+    <div class="anat">
+      <h4>Player page</h4>
+      <div class="path">/history/{code}/players/player{id}.htm</div>
+      <ul>
+        <li><code>&lt;title&gt;</code> = "<b>POS Name - Team</b>" (e.g. "SF LeBron James - Pistons").</li>
+        <li><code>&lt;textarea name="Awards"&gt;</code>: every honor as "<code>YYYY - Award</code>" lines
+          (incl. "All-Star Game Participant"; exclude "Rookie Game").</li>
+        <li>Achievements box: <b>Double Doubles</b>, <b>Triple Doubles</b>, <b>Championships</b>, Player of the Game.</li>
+        <li>Embeds the <code>player{id}stats.htm</code> iframe.</li>
+      </ul>
+    </div>
+
+    <div class="anat">
+      <h4>Per-game box scores <span class="tag exact">exact counts</span></h4>
+      <div class="path">/history/{code}/boxes/{D}-{G}.html</div>
+      <ul>
+        <li>Two team tables: <b>Name · POS · MIN · FG · FGA · 3P · 3PA · FT · FTA · REB · A · PF · ST · TO · BL · PTS</b>.</li>
+        <li><b>MIN and PF live only here</b> — published nowhere else on the site.</li>
+        <li>Names <b>unlinked</b> → join by (season, name); only 5 ambiguous pairs in 42 seasons.</li>
+        <li>Regular-season day list = the <code>boxes/day{D}.htm</code> links on <code>leagueschedule.htm</code>;
+          playoff boxes share the dir but are off-schedule.</li>
+        <li><span class="tag approx">gaps</span> Same coverage as All-Star: 1999 + 2001–2037 + current.
+          <b>14 box files missing upstream</b> (9 days in 1999/01/02/04/24).</li>
+        <li>Summing boxes = exact career Reb/Ast/Stl/Blk/TO — validated to the unit vs the official records
+          (Jrue Holiday 3,425 steals; Luka 15,587 assists through 2037).</li>
+      </ul>
+    </div>
+
+    <div class="anat">
+      <h4>Season awards</h4>
+      <div class="path">/history/{code}/regssnawards.htm</div>
+      <ul>
+        <li>One consolidated page/season, ~39 slots.</li>
+        <li>MVP · DPOY · ROY · 6th Man · All-League 1st/2nd/3rd · All-Defensive 1st/2nd · All-Rookie 1st/2nd.</li>
+        <li>Names are <b>linked with ids</b> → join cleanly by (season, id).</li>
+        <li>Page prints its year ("1999 Regular Season Awards") — trust that over the URL.</li>
+      </ul>
+    </div>
+
+    <div class="anat">
+      <h4>Playoffs / champion</h4>
+      <div class="path">/history/{code}/playoffs.htm</div>
+      <ul>
+        <li>The champion's roster link sits <b>immediately after the word "Champion"</b>.</li>
+        <li>Join by (season, roster#) to get the winning franchise.</li>
+        <li>41 champions on record (2038 still in progress).</li>
+      </ul>
+    </div>
+
+    <div class="anat">
+      <h4>All-Star box score</h4>
+      <div class="path">/history/{code}/boxes/allstar.html</div>
+      <ul>
+        <li>Player names are <b>unlinked</b> → count by name, not id.</li>
+        <li>Archived for <b>1999 + 2001–2037</b> only.</li>
+        <li><span class="tag approx">gap</span> 1996, 1997, 2000, 2005 boxes are missing — those games happened
+          (see player award boxes) but aren't archived.</li>
+      </ul>
+    </div>
+
+    <div class="anat">
+      <h4>Transactions</h4>
+      <div class="path">/history/{code}/transactions.htm</div>
+      <ul>
+        <li>Flat 4-col table: <b>Season · Day · Team · Action</b>; rows alternate bgcolor.</li>
+        <li>Each trade appears <b>twice</b> (once per team) → dedup by (day, teams, assets).</li>
+        <li>Format: "Trade {out} to the {counterparty} for {in}"; acting team = the Team column.</li>
+        <li>Assets split on "<code>, </code>" and "<code> and </code>"; picks from "one/N draft pick(s)".</li>
+        <li><b>In-season = day ≤ 122.</b> Reg-season trades cluster days 1–100; offseason resumes ~day 170.</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<section id="rules">
+  <div class="sec-head"><span class="sec-num">05</span><div>
+    <h2>Conventions &amp; the quirks that bite</h2>
+    <p class="sec-sub">The site is consistent, but a handful of behaviors will silently corrupt a naïve scrape.
+      These are the ones learned the hard way.</p>
+  </div></div>
+
+  <h3>Player identity is not the id</h3>
+  <p><b>Ids are recycled across eras.</b> Id <code>609</code> was Malik Sealy early, Brandon Roy later. An id is
+    not a career key. To reconstruct a career, group a <em>name's</em> ids and split into careers on
+    <b>year-continuity</b>: a run of <b>≥3 consecutive real seasons missing</b> starts a new person. This keeps
+    a mid-career id change as one player while separating two different people who share a name.</p>
+
+  <div class="note warn"><span class="lbl">The big one — career-page resets</span>
+    A player's <code>…stats.htm</code> page normally holds their whole career, but the sim sometimes <b>resets it
+    to a fresh window mid-career — even under the same id</b> (an un-retirement). The last-season snapshot then
+    shows only the latest window, silently dropping earlier ones. <b>LeBron James</b> was the sole site-wide case:
+    id 608 (2003–19) → id 3, whose page was itself reset from a 2020–25 window to a blank 2026–29 one. Reading
+    only the final page undercounted him by 434 G / 10,056 pts. <b>Fix:</b> walk back through earlier-season
+    snapshots of the same id and sum the non-overlapping windows.</div>
+
+  <div class="note good"><span class="lbl">What's exact vs approximate</span>
+    <span class="tag exact">exact</span> Games · Points (<code>2·FG+3P+FT</code>) · FG · FT · 3P · Double/Triple Doubles ·
+    Reb/Ast/Stl/Blk/TO <em>when counted from box scores</em>.
+    &nbsp; <span class="tag approx">≈ estimated</span> Reb/Ast/Stl/Blk/TO for the no-box seasons
+    (1996/97/2000/05, the unarchived 1998) and the 14 lost box files — derive those as <code>PG × Games</code>.</div>
+
+  <h3>Other conventions worth trusting</h3>
+  <div class="cards">
+    <div class="anat"><h4 style="font-size:16px">Mid-season trades</h4>
+      <ul><li>A traded player's <b>full-season stats are credited to their end-of-season team</b>. The site
+        never splits one season's line across teams.</li>
+      <li>But their season G <b>can exceed 82</b> — games accumulate across both teams' schedules (Jrue
+        Holiday: 92 G in 2016). A season is 82 <em>team</em> games: 29 teams → 1,189 league games.</li></ul></div>
+    <div class="anat"><h4 style="font-size:16px">Records page freezes the live season</h4>
+      <ul><li>Official career-record rows read <code>value | holder | pos | year</code>. For an active holder
+        the value runs <b>through the last completed season</b> — a record can be de facto broken mid-season
+        while the page still shows the old holder (LaMelo passed Jrue in steals mid-2038, on day 64).</li></ul></div>
+    <div class="anat"><h4 style="font-size:16px">Injuries ≠ Injured Reserve</h4>
+      <ul><li><b>Actual injuries</b> live at <code>/injuries.htm</code> ("Injured Players":
+        Name/Team/Injury/Duration in days), and per-team on each roster page's
+        <code>#injuries</code> table.</li>
+      <li><code>/ir.htm</code> is the <b>GM-maintained Injured Reserve</b> — a roster tool, not a medical
+        report. Teams carry up to 15 players but only 12 can be playable; GMs stash up to <b>3</b> on IR to
+        get down to 12. Players on IR may be healthy — duration 0 = healed but not yet activated.</li></ul></div>
+    <div class="anat"><h4 style="font-size:16px">Conferences &amp; divisions</h4>
+      <ul><li>East = rn1–15, West = rn16–29. Divisions: Atlantic rn1–7, Central rn8–15, Midwest rn16–22,
+        Pacific rn23–29.</li></ul></div>
+    <div class="anat"><h4 style="font-size:16px">Franchise = roster number</h4>
+      <ul><li><code>rn</code> is stable through renames — <code>rn3</code> is the Nets / "Brooklyn Ballers".
+        Track franchise history by rn, not team name.</li></ul></div>
+    <div class="anat"><h4 style="font-size:16px">Ability grades</h4>
+      <ul><li>In / Out / Hn / Df / Reb / Pot on an F…A+ scale, consistent across every era. On the roster page's
+        Player Abilities table.</li></ul></div>
+    <div class="anat"><h4 style="font-size:16px">Flaky reachability</h4>
+      <ul><li>The host occasionally refuses connections though the site is up. Retry transient
+        HTTP (429/5xx); the site itself is fine.</li></ul></div>
+  </div>
+</section>
+
+<section id="playbook">
+  <div class="sec-head"><span class="sec-num">06</span><div>
+    <h2>Query playbook</h2>
+    <p class="sec-sub">Start here for a new question: which file answers it, and how to read it.</p>
+  </div></div>
+  <div class="tbl-wrap"><table class="play">
+    <thead><tr><th>You want…</th><th>Go to</th><th>How to read it</th></tr></thead>
+    <tbody>
+      <tr><td>A player's line in one season</td><td class="mono">roster{rn}.htm</td>
+        <td>Player Statistics table row, or the stats-page row for that year. Per-game + shooting %.</td></tr>
+      <tr><td>A player's full career totals</td><td class="mono">player{id}stats.htm</td>
+        <td>Sum the season rows; bundle ids by name-continuity; <b>check for page resets</b> (see §5).</td></tr>
+      <tr><td>Who won an award in year Y</td><td class="mono">/history/{Y}/regssnawards.htm</td>
+        <td>Linked names → ids. Verify the printed year matches Y.</td></tr>
+      <tr><td>A player's career award count</td><td class="mono">player{id}.htm</td>
+        <td>Award textarea, or sum per-season award pages across the name's career segment.</td></tr>
+      <tr><td>Champion of year Y</td><td class="mono">/history/{Y}/playoffs.htm</td>
+        <td>Roster link right after "Champion" → (season, rn) → franchise.</td></tr>
+      <tr><td>A team's roster in year Y</td><td class="mono">/history/{Y}/rosters/roster{rn}.htm</td>
+        <td>Player Statistics table. Find rn from any player link or the franchise's rn.</td></tr>
+      <tr><td>All-Star selections</td><td class="mono">boxes/allstar.html</td>
+        <td>Count unlinked names by year; mind the 1996/97/2000/2005 archive gap.</td></tr>
+      <tr><td>Trades in a season</td><td class="mono">/history/{Y}/transactions.htm</td>
+        <td>Dedup the double-listed rows; filter day ≤ 122 for in-season.</td></tr>
+      <tr><td>Player abilities / grades</td><td class="mono">roster{rn}.htm</td>
+        <td>Player Abilities table (In/Out/Hn/Df/Reb/Pot), that season's snapshot.</td></tr>
+      <tr><td>Exact steals / rebounds / etc.</td><td class="mono">boxes/{D}-{G}.html</td>
+        <td>Sum box lines by name; day list from leagueschedule.htm; mind 4 gap years + 14 lost boxes.</td></tr>
+      <tr><td>Minutes or fouls totals</td><td class="mono">boxes/{D}-{G}.html</td>
+        <td>MIN and PF exist only in the boxes.</td></tr>
+      <tr><td>Who's actually hurt right now</td><td class="mono">/injuries.htm</td>
+        <td>League-wide injury list with days remaining. (/ir.htm is the GM roster stash, not injuries.)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+</main>
+
+<footer><div class="wrap">
+  <div><b>Sim League Nirvana — Data Field Guide.</b> Compiled from the SLN Stat Book scrapers and verified
+    against the live site. Companion to the stat book at
+    <a class="inline" href="https://slnstatbook.com/">slnstatbook.com</a>.</div>
+  <div>Counts stated as validated reflect ground-truth checks at time of writing; a running season and new
+    un-retirements can shift them. Re-verify totals before quoting them.</div>
+  <div><b>Running your own AI analysis?</b> Point your assistant at the machine-readable version of this guide:
+    <a class="inline" href="https://slnstatbook.com/guide/guide.md">slnstatbook.com/guide/guide.md</a> —
+    the same content as plain markdown, ideal for pasting into a prompt or fetching directly.</div>
+</div></footer>
+</body>
+</html>

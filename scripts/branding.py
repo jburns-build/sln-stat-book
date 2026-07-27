@@ -41,7 +41,8 @@ FAVICON = base64.b64encode(LOGO_SVG.encode()).decode()
 LOGO_INLINE = LOGO_SVG.replace('<svg ', '<svg width="28" height="28" ', 1)
 
 SITE_ROOT = "https://slnstatbook.com"
-TABS = [("SLN", "/"), ("NDL", "/ndl/"), ("Records", "/records/"), ("Teams", "/teams/")]
+TABS = [("SLN", "/"), ("NDL", "/ndl/"), ("Records", "/records/"), ("Teams", "/teams/"),
+        ("Guide", "/guide/")]
 
 
 def switcher(active):

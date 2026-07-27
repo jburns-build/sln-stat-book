@@ -139,11 +139,13 @@ jobs:
 
       - name: Stage site
         run: |
-          mkdir -p _site/ndl _site/records _site/teams
+          mkdir -p _site/ndl _site/records _site/teams _site/guide
           cp out/sln_stats.html _site/index.html
           cp out/ndl_stats.html _site/ndl/index.html
           cp out/records.html _site/records/index.html
           cp out/teams.html _site/teams/index.html
+          cp static/guide.html _site/guide/index.html
+          cp SLN_NIRVANA_KNOWLEDGE_BASE.md _site/guide/guide.md   # AI-readable twin
           echo "slnstatbook.com" > _site/CNAME   # keep the custom domain on every deploy
           ls -la _site _site/ndl _site/records _site/teams
 
