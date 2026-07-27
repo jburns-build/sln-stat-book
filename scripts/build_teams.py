@@ -166,7 +166,7 @@ __SWITCH_CSS__
   <div class="cards" id="cum"></div>
   <h2 class="sect">Best single season <span>top individual seasons for the team</span></h2>
   <div class="cards" id="ssn"></div>
-  <div class="foot">SLN Team Records — computed from 42 seasons of roster data.<br>
+  <div class="foot">SLN Team Records — computed from 42 seasons of roster data · __GUIDE__<br>
     <span style="opacity:.85">Data updated <b id="buildstamp">__BUILT__</b> · auto-refreshes every 4 hours ·
     <button id="refreshBtn" class="refresh" hidden>🔄 Refresh now</button>
     <a href="#" onclick="location.reload();return false;">reload</a>
@@ -261,6 +261,7 @@ out = (HTML.replace("__DATA__", DATA_JS)
            .replace("__FAVICON__", FAVICON)
            .replace("__LOGO__", LOGO_INLINE)
            .replace("__SWITCH_CSS__", branding.SWITCH_CSS)
+           .replace("__GUIDE__", branding.GUIDE_LINK)
            .replace("__SWITCHER__", branding.switcher("Teams")))
 path = f"{ROOT}/out/teams.html"
 with open(path, "w") as fh:

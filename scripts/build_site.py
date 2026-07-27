@@ -217,7 +217,7 @@ __SWITCH_CSS__
 
   <div id="playerview" hidden></div>
 
-  <div class="foot">__LEAGUE__ Stat Book — data mirrored from simleaguenirvana.com · click a player name for their SLN page, 📊 to compare years.<br>
+  <div class="foot">__LEAGUE__ Stat Book — data mirrored from simleaguenirvana.com · click a player name for their SLN page, 📊 to compare years · __GUIDE__<br>
     <span style="opacity:.85">Data updated <b id="buildstamp">__BUILT__</b> · auto-refreshes every 4 hours ·
     <button id="refreshBtn" class="refresh" hidden>🔄 Refresh now</button>
     <a href="#" onclick="location.reload();return false;">reload</a>
@@ -673,6 +673,7 @@ out = (HTML.replace("__DATA__", DATA_JS)
            .replace("__LEAGUE__", CFG["name"])
            .replace("__SRC_SITE__", CFG["site"])
            .replace("__SWITCH_CSS__", branding.SWITCH_CSS)
+           .replace("__GUIDE__", branding.GUIDE_LINK)
            .replace("__SWITCHER__", branding.switcher(CFG["name"])))
 path = f"{ROOT}/out/{CFG['out']}"
 with open(path, "w") as fh:

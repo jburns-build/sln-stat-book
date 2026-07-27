@@ -170,7 +170,7 @@ __SWITCH_CSS__
   <div class="cards" id="pergame"></div>
   <h2 class="sect">Awards &amp; honors <span>top 5 each</span></h2>
   <div class="cards" id="awards"></div>
-  <div class="foot">SLN Career Records — top 10 per category across all 42 seasons (1996–2038).
+  <div class="foot">SLN Career Records — top 10 per category across all 42 seasons (1996–2038) · __GUIDE__
     <span class="dot"></span> = still active in 2038.<br>
     <b>Career totals last pulled __FETCHED__</b> (refreshed once a day); awards &amp; All-Star update on every refresh.<br>
     <span style="opacity:.85">Page rebuilt <b id="buildstamp">__BUILT__</b> · auto-refreshes every 4 hours ·
@@ -365,6 +365,7 @@ out = (HTML.replace("__DATA__", DATA_JS)
            .replace("__FAVICON__", FAVICON)
            .replace("__LOGO__", LOGO_INLINE)
            .replace("__SWITCH_CSS__", branding.SWITCH_CSS)
+           .replace("__GUIDE__", branding.GUIDE_LINK)
            .replace("__SWITCHER__", branding.switcher("Records")))
 path = f"{ROOT}/out/records.html"
 with open(path, "w") as fh:
