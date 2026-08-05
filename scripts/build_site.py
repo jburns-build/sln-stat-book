@@ -191,6 +191,13 @@ __SWITCH_CSS__
       </select></div>
     <div class="fld"><label for="pos">Position</label>
       <select id="pos"><option value="">All</option></select></div>
+    <div class="fld"><label for="ctr">Contract</label>
+      <select id="ctr">
+        <option value="">Any contract</option>
+        <option value="1">Expiring (1 yr left)</option>
+        <option value="2">2 yrs left</option>
+        <option value="3">3+ yrs left</option>
+      </select></div>
     <div class="fld"><label for="q">Search player</label>
       <input id="q" type="search" placeholder="name…" autocomplete="off"></div>
     <div class="count" id="count"></div>
@@ -394,12 +401,14 @@ function tierClass(rank){
 // ============================ TABLE VIEW ============================
 function tableRows(){
   const season=seasonSel.value, mpg=+el('mpg').value, team=el('team').value,
-        pos=el('pos').value, rec=el('rec').value, q=el('q').value.trim().toLowerCase();
+        pos=el('pos').value, rec=el('rec').value, ctr=el('ctr').value,
+        q=el('q').value.trim().toLowerCase();
   return DS.players.filter(p=> p.season===season
     && (mpg===0 || (p.mpg!==null && p.mpg>=mpg))
     && (!team || p.team===team)
     && (!pos || p.pos===pos)
     && recMatch(p,rec)
+    && (!ctr || (ctr==='3' ? (p.yrs||0)>=3 : (p.yrs||0)===+ctr))
     && (!q || p.name.toLowerCase().includes(q)));
 }
 function buildHead(){
@@ -606,7 +615,7 @@ function buildFacets(){
 }
 seasonSel.onchange=()=>{ buildFacets(); render(); };
 el('mpg').onchange=render; el('team').onchange=render; el('pos').onchange=render;
-el('rec').onchange=render; el('q').oninput=render;
+el('rec').onchange=render; el('ctr').onchange=render; el('q').oninput=render;
 el('home').onclick=()=>{ closePlayer(); };
 
 // --- Basic / Advanced view toggle ---
