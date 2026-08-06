@@ -276,6 +276,27 @@ def main():
     played_keys = {p["season"] for p in players if p["g"]}
     for s in seasons:
         s["played"] = s["key"] in played_keys
+    # Offseason carryover: between seasons the sim updates rosters (free agency,
+    # trades) while the roster pages still SHOW last season's stats under the
+    # new year. If the current rows are near-all identical to the previous
+    # season's for the same ids, the new season hasn't actually been played:
+    # flag it unplayed so the UI defaults to the last real season, and label it.
+    cur_rows = [p for p in players if p["season"] == "current" and p["g"]]
+    hist = [s["key"] for s in seasons if s["key"] != "current"]
+    if cur_rows and hist:
+        prev_key = max(hist, key=year_of)
+        prev = {p["id"]: (p["g"], p["ppg"], p["rpg"], p["apg"])
+                for p in players if p["season"] == prev_key}
+        same = sum(1 for p in cur_rows
+                   if prev.get(p["id"]) == (p["g"], p["ppg"], p["rpg"], p["apg"]))
+        if same >= 0.9 * len(cur_rows):
+            for s in seasons:
+                if s["key"] == "current":
+                    s["played"] = False
+                    s["label"] = s["label"].replace(
+                        "(in progress)", "(offseason — stats shown are last season's)")
+            print(f"offseason carryover: {same}/{len(cur_rows)} current rows "
+                  f"identical to s{prev_key} — current marked unplayed")
     seasons.sort(key=lambda s: -s["order"])
     ds = {"seasons": seasons, "champs": champs, "records": records,
           "players": players}

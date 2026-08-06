@@ -146,7 +146,17 @@ SUM_FIELDS = ["games", "fg", "fga", "ft", "fta", "tp", "tpa", "reb", "ast",
 
 def main():
     from collections import defaultdict
-    players = json.load(open(f"{ROOT}/out/players_dataset.json"))["players"]
+    _ds = json.load(open(f"{ROOT}/out/players_dataset.json"))
+    players = _ds["players"]
+    # Offseason carryover (detected by build_players_dataset): the roster pages
+    # show LAST season's stats under the new year, so the "current" rows are
+    # phantoms — the stats pages have no row for the new year yet. Skip the
+    # current season in hybrid coverage or every rostered player's coverage
+    # exceeds their stats-page career and trips the derived fallback.
+    OFFSEASON = any(s["key"] == "current" and not s.get("played", True)
+                    for s in _ds.get("seasons", []))
+    if OFFSEASON:
+        print("offseason carryover detected — current season excluded from hybrid coverage")
     years = sorted({yr(p["season"]) for p in players})
     idx = {y: i for i, y in enumerate(years)}    # real-season ordinal (no 1998)
 
@@ -360,6 +370,8 @@ def main():
                 for pid in seg["ids"]:
                     for y in sorted(idmap[pid]["pyears"]):
                         code = code_for_year(y)
+                        if code == "current" and OFFSEASON:
+                            continue               # phantom carryover season
                         row = ROST.get((code, pid))
                         if row is None:
                             continue
