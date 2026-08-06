@@ -26,7 +26,7 @@ ds = json.load(open(f"{ROOT}/out/careers_dataset.json"))
 # Verified against players' own award boxes (Luka: 7 MVP, 16 All-League 1st).
 AWARD_KEYS = ["MVP", "DPOY", "6th Man", "All-League 1st", "All-Defensive 1st"]
 PRE = {"96": 1996, "97": 1997, "99": 1999}
-def _yr(sc): return 2038 if sc == "current" else PRE.get(sc, 2000 + int(sc))
+def _yr(sc): return 2039 if sc == "current" else PRE.get(sc, 2000 + int(sc))
 
 _pl = json.load(open(f"{ROOT}/out/players_dataset.json"))["players"]
 _YEARS = sorted({_yr(p["season"]) for p in _pl})
@@ -170,8 +170,8 @@ __SWITCH_CSS__
   <div class="cards" id="pergame"></div>
   <h2 class="sect">Awards &amp; honors <span>top 5 each</span></h2>
   <div class="cards" id="awards"></div>
-  <div class="foot">SLN Career Records — top 10 per category across all 42 seasons (1996–2038) · __GUIDE__
-    <span class="dot"></span> = still active in 2038.<br>
+  <div class="foot">SLN Career Records — top 10 per category across all 43 seasons (1996–2039) · __GUIDE__
+    <span class="dot"></span> = still active in 2039.<br>
     <b>Career totals last pulled __FETCHED__</b> (refreshed once a day); awards &amp; All-Star update on every refresh.<br>
     <span style="opacity:.85">Page rebuilt <b id="buildstamp">__BUILT__</b> · auto-refreshes every 4 hours ·
     <button id="refreshBtn" class="refresh" hidden>🔄 Refresh now</button>
@@ -251,7 +251,7 @@ function rowHtml(p,i,val,q,extra){
   const tail=extra?`<span class="era">${extra}</span>`:'';
   return `<div class="row${i===0?' rk1':''}${hit}" title="${esc(p.pos||'')} · ${p.first}–${p.last} · ${p.seasons} seasons">`
    + `<span class="n">${i+1}</span>`
-   + `<span class="nm">${nm}${p.active?'<span class="dot" title="Active in 2038"></span>':''}`
+   + `<span class="nm">${nm}${p.active?'<span class="dot" title="Active in 2039"></span>':''}`
    + `<span class="era">'${String(p.first).slice(-2)}–'${String(p.last).slice(-2)}</span></span>`
    + tail
    + `<span class="v">${val}</span></div>`;
@@ -313,8 +313,8 @@ function render(){
   renderAwards(q);
   const act=C.filter(p=>p.active).length;
   el('note').innerHTML = mode==='active'
-    ? `Showing the best careers among the <b>${act}</b> players active in 2038.`
-    : `All-time across <b>${C.length.toLocaleString()}</b> players in league history · <span class="dot"></span> = active in 2038.`;
+    ? `Showing the best careers among the <b>${act}</b> players active in 2039.`
+    : `All-time across <b>${C.length.toLocaleString()}</b> players in league history · <span class="dot"></span> = active in 2039.`;
 }
 el('m-all').onclick=()=>{ mode='all'; el('m-all').classList.add('on'); el('m-act').classList.remove('on'); render(); };
 el('m-act').onclick=()=>{ mode='active'; el('m-act').classList.add('on'); el('m-all').classList.remove('on'); render(); };

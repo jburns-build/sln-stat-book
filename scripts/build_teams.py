@@ -5,7 +5,7 @@ Computed entirely from the roster data already in out/players_dataset.json — n
 scraping — so it costs nothing on a refresh. Franchises are identified by their
 stable roster number (rn), which follows a team through renames/relocations
 (e.g. rn 3 = the Nets whether "New Jersey Nets" or "Brooklyn Ballers"); the
-canonical name is the team's current (2038) name.
+canonical name is the team's current (2039) name.
 
 Two boards per team:
   - Franchise leaders : top 5 by TOTAL amassed while on the team (career-with-team)
@@ -29,7 +29,7 @@ _wu = f"{ROOT}/worker_url.txt"
 WORKER_URL = open(_wu).read().strip() if os.path.exists(_wu) else ""
 
 PRE = {"96": 1996, "97": 1997, "99": 1999}
-def yr(sc): return 2038 if sc == "current" else PRE.get(sc, 2000 + int(sc))
+def yr(sc): return 2039 if sc == "current" else PRE.get(sc, 2000 + int(sc))
 
 # counting categories (all derived from per-game averages except games)
 CUM_CATS = [("g", "Games"), ("pts", "Points"), ("reb", "Rebounds"),
@@ -159,7 +159,7 @@ __SWITCH_CSS__
 <div class="wrap">
   <div class="bar">
     <div class="fld"><label for="team">Franchise</label><select id="team"></select></div>
-    <div class="note">Top 5 per category · players link to their SLN page · <span class="dot"></span> = still active in 2038.<br>
+    <div class="note">Top 5 per category · players link to their SLN page · <span class="dot"></span> = still active in 2039.<br>
       Counting totals are derived from per-game averages (Points = PPG×Games…), so they carry ~0.1%; Games is exact.</div>
   </div>
   <h2 class="sect">Franchise leaders <span>most amassed while on the team (all seasons)</span></h2>
@@ -184,7 +184,7 @@ function playerUrl(key){const [season,id]=(key||'').split(':'); if(!id)return nu
 function nameCell(name,key,extraActive,eraHtml){
   const url=playerUrl(key);
   const nm=url?`<a href="${url}" target="_blank" rel="noopener">${esc(name)}</a>`:esc(name);
-  return `<span class="nm">${nm}${extraActive?'<span class="dot" title="Active in 2038"></span>':''}${eraHtml||''}</span>`;
+  return `<span class="nm">${nm}${extraActive?'<span class="dot" title="Active in 2039"></span>':''}${eraHtml||''}</span>`;
 }
 
 // team dropdown

@@ -204,7 +204,7 @@ PRE_YEARS = {"96": 1996, "97": 1997, "99": 1999}
 
 def year_of(code):
     if code == "current":
-        return 2038
+        return 2039
     if code in PRE_YEARS:
         return PRE_YEARS[code]
     return 2000 + int(code)
@@ -222,7 +222,7 @@ def season_dirs():
             yield (code, str(year_of(code)), year_of(code), d)
     cur = f"{MIRROR}/current/rosters"
     if os.path.isdir(cur):
-        yield ("current", "2038 (in progress)", 2038, cur)
+        yield ("current", "2039 (in progress)", 2039, cur)
 
 
 def main():

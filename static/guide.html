@@ -144,7 +144,7 @@
   <div class="factstrip">
     <div class="fact"><span class="k">Base</span><span class="v">www.simleaguenirvana.com</span></div>
     <div class="fact"><span class="k">Leagues</span><span class="v">SLN · NDL (/NDL/)</span></div>
-    <div class="fact"><span class="k">Seasons</span><span class="v">42 (1996–2038)</span></div>
+    <div class="fact"><span class="k">Seasons</span><span class="v">43 (1996–2039)</span></div>
     <div class="fact"><span class="k">Teams / season</span><span class="v">~29</span></div>
     <div class="fact"><span class="k">Encoding</span><span class="v">latin-1</span></div>
   </div>
@@ -182,8 +182,8 @@
     <tbody>
       <tr><td>96</td><td>1996</td><td>00</td><td>2000</td><td style="font-family:var(--serif)">Earliest three seasons are historical mirrors</td></tr>
       <tr><td>97</td><td>1997</td><td>…</td><td>…</td><td style="font-family:var(--serif)"><code>NN</code> = <span class="num">2000</span>+<code>NN</code> for 00–37</td></tr>
-      <tr><td>98</td><td>— none —</td><td>37</td><td>2037</td><td style="font-family:var(--serif)">2037 = last <b>completed</b> season</td></tr>
-      <tr><td>99</td><td>1999</td><td>current</td><td>2038</td><td style="font-family:var(--serif)">2038 in progress — top-level, no <code>/history/</code></td></tr>
+      <tr><td>98</td><td>— none —</td><td>37</td><td>2037</td><td style="font-family:var(--serif)">38 = 2038, the last <b>completed</b> season</td></tr>
+      <tr><td>99</td><td>1999</td><td>current</td><td>2039</td><td style="font-family:var(--serif)">2039 in progress — top-level, no <code>/history/</code></td></tr>
     </tbody>
   </table></div>
   <div class="note warn"><span class="lbl">1998 happened — only its archive is missing</span>
@@ -221,8 +221,8 @@
   </table></div>
   <div class="note"><span class="lbl">Current-page year skew</span>
     The top-level <code>/regssnawards.htm</code> and <code>/playoffs.htm</code> show the <em>last completed</em>
-    season (2037) until 2038 finishes. Always guard on the year the page prints, or you'll attribute 2037's
-    awards/champion to 2038. NDL: same patterns under <code>/NDL/…</code>, current season only.</div>
+    season until the live one finishes. Always guard on the year the page prints, or you'll attribute last
+    season's awards/champion to the current year. NDL: same patterns under <code>/NDL/…</code>, current season only.</div>
 </section>
 
 <section id="anatomy">
@@ -275,10 +275,10 @@
       <ul>
         <li>Two team tables: <b>Name · POS · MIN · FG · FGA · 3P · 3PA · FT · FTA · REB · A · PF · ST · TO · BL · PTS</b>.</li>
         <li><b>MIN and PF live only here</b> — published nowhere else on the site.</li>
-        <li>Names <b>unlinked</b> → join by (season, name); only 5 ambiguous pairs in 42 seasons.</li>
+        <li>Names <b>unlinked</b> → join by (season, name); only 5 ambiguous pairs across all seasons.</li>
         <li>Regular-season day list = the <code>boxes/day{D}.htm</code> links on <code>leagueschedule.htm</code>;
           playoff boxes share the dir but are off-schedule.</li>
-        <li><span class="tag approx">gaps</span> Same coverage as All-Star: 1999 + 2001–2037 + current.
+        <li><span class="tag approx">gaps</span> Same coverage as All-Star: 1999 + 2001–2038 + current.
           <b>14 box files missing upstream</b> (9 days in 1999/01/02/04/24).</li>
         <li>Summing boxes = exact career Reb/Ast/Stl/Blk/TO — validated to the unit vs the official records
           (Jrue Holiday 3,425 steals; Luka 15,587 assists through 2037).</li>
@@ -302,7 +302,7 @@
       <ul>
         <li>The champion's roster link sits <b>immediately after the word "Champion"</b>.</li>
         <li>Join by (season, roster#) to get the winning franchise.</li>
-        <li>41 champions on record (2038 still in progress).</li>
+        <li>42 champions on record (2039 still in progress).</li>
       </ul>
     </div>
 
@@ -311,7 +311,7 @@
       <div class="path">/history/{code}/boxes/allstar.html</div>
       <ul>
         <li>Player names are <b>unlinked</b> → count by name, not id.</li>
-        <li>Archived for <b>1999 + 2001–2037</b> only.</li>
+        <li>Archived for <b>1999 + 2001–2038</b> only.</li>
         <li><span class="tag approx">gap</span> 1996, 1997, 2000, 2005 boxes are missing — those games happened
           (see player award boxes) but aren't archived.</li>
       </ul>

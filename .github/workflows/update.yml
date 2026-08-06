@@ -115,7 +115,9 @@ jobs:
                   sys.exit(f"ERROR: {league} live season has almost no game data — refusing to publish.")
               return d
 
-          sln = check("out/players_dataset.json", "sln", need_games=True)
+          # need_games=False: at a season rollover the new live season legitimately
+          # has zero games; the row-count and team-count checks still guard scrapes
+          sln = check("out/players_dataset.json", "sln", need_games=False)
           if len(sln["players"]) < 15000:
               sys.exit(f"ERROR: SLN only {len(sln['players'])} total rows — refusing to publish.")
           # The NDL season may legitimately not have started yet, so games aren't required.

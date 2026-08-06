@@ -57,11 +57,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRE = ["96", "97", "99"]
 for s in PRE:
     scrape_dir(f"{BASE}/history/{s}/rosters", f"{ROOT}/mirror/s{s}/rosters", f"s{s}")
-for ss in range(32, 38):
+for ss in range(32, 39):
     s = f"{ss:02d}"
     scrape_dir(f"{BASE}/history/{s}/rosters", f"{ROOT}/mirror/s{s}/rosters", f"s{s}")
 # current in-progress season (2038) lives at the top level and changes daily -> always refresh
-got = scrape_dir(f"{BASE}/rosters", f"{ROOT}/mirror/current/rosters", "current(2038)", force=True)
+got = scrape_dir(f"{BASE}/rosters", f"{ROOT}/mirror/current/rosters", "current(2039)", force=True)
 # On an intermittently-blocked GitHub runner the live pull can come back empty
 # even though the site is up. Wait and retry the whole batch a couple times
 # before giving up, so a transient blip doesn't fail the build.
@@ -70,7 +70,7 @@ while got < MIN_CURRENT_TEAMS and tries < 2:
     tries += 1
     print(f"  live season short ({got}); waiting 45s and retrying ({tries}/2)…", flush=True)
     time.sleep(45)
-    got = scrape_dir(f"{BASE}/rosters", f"{ROOT}/mirror/current/rosters", "current(2038)", force=True)
+    got = scrape_dir(f"{BASE}/rosters", f"{ROOT}/mirror/current/rosters", "current(2039)", force=True)
 # Fail loudly rather than let a build ship with the live season missing. In CI
 # mirror/current/ starts empty, so a failed scrape would silently drop the whole
 # season; exiting non-zero keeps the last good deploy live instead.

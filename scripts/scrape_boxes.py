@@ -33,7 +33,7 @@ OUT = f"{ROOT}/data/box_agg.json"
 SLEEP = 0.35
 # box-era seasons, newest first so the modern leaderboards firm up earliest;
 # "current" leads because it's small and keeps the live season fresh
-SEASONS = ["current"] + [f"{n:02d}" for n in range(37, 0, -1) if n not in (5,)] + ["99"]
+SEASONS = ["current"] + [f"{n:02d}" for n in range(38, 0, -1) if n not in (5,)] + ["99"]
 ONLY = [a.split("=", 1)[1] for a in sys.argv if a.startswith("--only=")]
 if ONLY:
     SEASONS = [s for s in SEASONS if s in ONLY[0].split(",")]
@@ -134,9 +134,9 @@ def main():
                 continue
             links = re.findall(rf"href=\"({d}-\d+\.html)\"", h)
             if not links:
-                if code == "current" and d > s["days_done"] + 1:
-                    break                              # future day — stop cleanly
-                s["days_done"] = d                     # a real 0-game day
+                if code == "current":
+                    break                              # unplayed day — revisit next run
+                s["days_done"] = d                     # historical 0-game day is final
                 continue
             day_agg = {}
             lost = []

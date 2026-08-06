@@ -11,7 +11,7 @@ https://slnstatbook.com/guide/guide.md (or this repo file) to give it the full s
 |---|---|
 | Base | `https://www.simleaguenirvana.com` |
 | Leagues | SLN (root) · NDL (`/NDL/`) |
-| Seasons | 42 (1996–2038) |
+| Seasons | 43 (1996–2039) |
 | Teams/season | ~29 |
 | Encoding | latin-1 |
 
@@ -43,8 +43,8 @@ URLs key on a season *code*, not the year.
 | `97` | 1997 | historical mirror |
 | `98` | — **none** | `/history/98/` 404s — the league skipped it |
 | `99` | 1999 | historical mirror |
-| `00`–`37` | 2000–2037 | `NN` = 2000 + `NN`; 2037 = last **completed** season |
-| `current` | 2038 | in progress — top-level, no `/history/` prefix |
+| `00`–`38` | 2000–2038 | `NN` = 2000 + `NN`; 2038 = last **completed** season |
+| `current` | 2039 | in progress — top-level, no `/history/` prefix |
 
 > **There is no 1998.** Count career continuity by *real-season ordinal* (96, 97, 99, 00, 01…), never by
 > subtracting years, or every gap straddling 1998 is off by one.
@@ -76,7 +76,7 @@ URLs key on a season *code*, not the year.
 East = rn1–15, West = rn16–29; divisions: Atlantic rn1–7, Central rn8–15, Midwest rn16–22, Pacific rn23–29.
 
 > **Current-page year skew.** Top-level `/regssnawards.htm` and `/playoffs.htm` show the *last completed*
-> season (2037) until 2038 finishes. Always guard on the year the page prints.
+> season until the live one finishes. Always guard on the year the page prints.
 
 ---
 
@@ -112,11 +112,11 @@ East = rn1–15, West = rn16–29; divisions: Atlantic rn1–7, Central rn8–15
 
 ### Playoffs — `playoffs.htm`
 - The champion's roster link sits **immediately after the word "Champion"**.
-- Join by `(season, roster#)`. 41 champions on record (2038 in progress).
+- Join by `(season, roster#)`. 42 champions on record (2039 in progress).
 
 ### All-Star box score — `boxes/allstar.html`
 - Player names are **unlinked** → count by name, not id.
-- Archived for **1999 + 2001–2037** only.
+- Archived for **1999 + 2001–2038** only.
 - **Gap:** 1996, 1997, 2000, 2005 boxes are missing — those games happened (see player award boxes) but
   aren't archived.
 
@@ -125,10 +125,10 @@ East = rn1–15, West = rn16–29; divisions: Atlantic rn1–7, Central rn8–15
   `Name, POS, MIN, FG, FGA, 3P, 3PA, FT, FTA, REB, A, PF, ST, TO, BL, PTS`.
 - **MIN and PF are published nowhere else** on the site.
 - Names are **unlinked** (like the All-Star boxes) → join by (season, name); only 5
-  (season, name) pairs in 42 seasons are ambiguous.
+  (season, name) pairs across all seasons are ambiguous.
 - **Regular-season/playoff boundary:** the day list linked from `leagueschedule.htm` is
   regular season only; playoff boxes live in the same `boxes/` dir but are off-schedule.
-- Coverage mirrors the All-Star archive: 1999 + 2001–2037 + current; nothing for
+- Coverage mirrors the All-Star archive: 1999 + 2001–2038 + current; nothing for
   1996/1997/2000/2005. **14 individual box files are missing upstream** (404/empty),
   across 9 days in seasons 1999/2001/2002/2004/2024.
 - Summing boxes gives **exact** career Reb/Ast/Stl/Blk/TO (validated to-the-unit against

@@ -9,7 +9,7 @@ import os, time, urllib.request
 UA = "Mozilla/5.0 (research audit; polite)"
 BASE = "https://www.simleaguenirvana.com"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CODES = ["96", "97", "99"] + [f"{i:02d}" for i in range(0, 38)]
+CODES = ["96", "97", "99"] + [f"{i:02d}" for i in range(0, 39)]
 
 
 def fetch(url):

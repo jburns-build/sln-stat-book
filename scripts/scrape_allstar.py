@@ -16,7 +16,7 @@ import os, re, sys, time, urllib.request, urllib.error
 UA = {"User-Agent": "Mozilla/5.0 (research audit; polite)"}
 B = "https://www.simleaguenirvana.com"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CODES = ["96", "97", "99"] + [f"{i:02d}" for i in range(0, 38)]
+CODES = ["96", "97", "99"] + [f"{i:02d}" for i in range(0, 39)]
 PRE = {"96": 1996, "97": 1997, "99": 1999}
 
 

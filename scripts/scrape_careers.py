@@ -36,12 +36,12 @@ START = time.monotonic()
 
 
 def yr(s):
-    return 2038 if s == "current" else PRE.get(s, 2000 + int(s) if s.isdigit() else 0)
+    return 2039 if s == "current" else PRE.get(s, 2000 + int(s) if s.isdigit() else 0)
 
 
 # inverse of yr(): calendar year -> season code used in URLs
 def code_for_year(y):
-    if y == 2038:
+    if y == 2039:
         return "current"
     if y in (1996, 1997, 1999):
         return str(y)[2:]
