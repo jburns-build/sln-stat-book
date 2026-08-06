@@ -45,6 +45,23 @@ if LEAGUE == "sln" and os.path.exists(_sf):
     _pl = sum(1 for p in ds["players"] if p.get("g"))
     print(f"advanced shooting: joined {_n}/{_pl} played player-seasons")
 
+# Current free agents (scrape_fa.py) -> flag their rows in the two NEWEST
+# seasons so a "Free agents only" filter can show last season's stats during
+# the offseason. Ids are stable across adjacent seasons; the era-recycling
+# hazard only exists for older seasons, which never get the flag.
+_ff = f"{ROOT}/out/fa.json"
+if LEAGUE == "sln" and os.path.exists(_ff):
+    _fa = set(json.load(open(_ff)).get("ids", []))
+    if _fa:
+        _newest = {s["key"] for s in
+                   sorted(ds["seasons"], key=lambda s: -s["order"])[:2]}
+        _n = 0
+        for p in ds["players"]:
+            if p["season"] in _newest and p["id"] in _fa:
+                p["fa"] = 1
+                _n += 1
+        print(f"free agents: {len(_fa)} in pool, flagged {_n} rows across {sorted(_newest)}")
+
 DATA_JS = json.dumps(ds, separators=(",", ":"))
 # Build time shown to readers, in US Pacific (auto PST/PDT via the tz database)
 BUILT = datetime.datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%b %d, %Y · %-I:%M %p %Z")
@@ -197,6 +214,11 @@ __SWITCH_CSS__
         <option value="1">Expiring (1 yr left)</option>
         <option value="2">2 yrs left</option>
         <option value="3">3+ yrs left</option>
+      </select></div>
+    <div class="fld" id="faFld" hidden><label for="fa">Status</label>
+      <select id="fa">
+        <option value="">All players</option>
+        <option value="1">Free agents only</option>
       </select></div>
     <div class="fld"><label for="q">Search player</label>
       <input id="q" type="search" placeholder="name…" autocomplete="off"></div>
@@ -409,6 +431,7 @@ function tableRows(){
     && (!pos || p.pos===pos)
     && recMatch(p,rec)
     && (!ctr || (ctr==='3' ? (p.yrs||0)>=3 : (p.yrs||0)===+ctr))
+    && (!el('fa').value || p.fa)
     && (!q || p.name.toLowerCase().includes(q)));
 }
 function buildHead(){
@@ -446,7 +469,7 @@ function renderTable(){
       if(c.k==='name'){ html+=`<td class="txt name"><a href="${playerUrl(p)}" target="_blank" rel="noopener">${esc(p.name)}</a>`
         +trophy(p)+`<button class="cmp" title="Compare ${esc(p.name)} across years" data-nm="${esc(p.name)}">📊</button></td>`; return; }
       if(c.k==='pos'){ html+=`<td class="txt"><span class="pos">${esc(p.pos||'')}</span></td>`; return; }
-      if(c.k==='team'){ html+=`<td class="txt team"><a href="${teamUrl(p)}"${recAttr(p)} target="_blank" rel="noopener">${esc(p.team)}</a>${champBadge(p)}</td>`; return; }
+      if(c.k==='team'){ html+=`<td class="txt team"><a href="${teamUrl(p)}"${recAttr(p)} target="_blank" rel="noopener">${esc(p.team)}</a>${champBadge(p)}${p.fa?'<span class="pos" style="margin-left:5px;background:#fde8cf;color:#8a5a12" title="Currently a free agent">FA</span>':''}</td>`; return; }
       const rk = ranks[c.k] && (p.id in ranks[c.k]) ? ranks[c.k][p.id] : null;
       const cls = rk!==null ? ' class="'+tierClass(rk)+'"' : '';
       html+=`<td${cls}>${cellText(p,c)}</td>`;
@@ -616,6 +639,19 @@ function buildFacets(){
 seasonSel.onchange=()=>{ buildFacets(); render(); };
 el('mpg').onchange=render; el('team').onchange=render; el('pos').onchange=render;
 el('rec').onchange=render; el('ctr').onchange=render; el('q').oninput=render;
+// Status filter only appears when the dataset carries free-agent flags.
+// FAs have no current-season roster rows, so engaging the filter jumps to the
+// newest season that actually contains them (their last played season).
+if(DS.players.some(p=>p.fa)){
+  el('faFld').hidden=false;
+  el('fa').onchange=()=>{
+    if(el('fa').value && !DS.players.some(p=>p.season===seasonSel.value&&p.fa)){
+      const best=DS.seasons.find(s=>DS.players.some(p=>p.season===s.key&&p.fa));
+      if(best){ seasonSel.value=best.key; buildFacets(); }
+    }
+    render();
+  };
+}
 el('home').onclick=()=>{ closePlayer(); };
 
 // --- Basic / Advanced view toggle ---

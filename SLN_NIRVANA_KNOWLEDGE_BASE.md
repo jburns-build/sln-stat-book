@@ -70,6 +70,7 @@ URLs key on a season *code*, not the year.
 | League schedule | `/leagueschedule.htm` | `/history/{code}/leagueschedule.htm` | reg-season day list |
 | Divisional standings | `/divstand.htm` | (historical unverified) | W/L/L10/GB by division |
 | Playoff standings | `/playstand.htm` | (historical unverified) | by conference, top-8 starred |
+| Free agents | `/fa/fa-pos.htm` | (current only) | unsigned players: Name (linked w/ id), Pos, measurables, ability grades, Last Team — they appear on NO roster page |
 | Injuries (league-wide) | `/injuries.htm` | (historical unverified) | "Injured Players": Name/Team/Injury/Duration in days |
 | Injured Reserve | `/ir.htm` | (historical unverified) | **GM roster tool, not a medical report** — teams carry up to 15 players but only 12 playable; GMs stash up to 3 on IR. IR players may be healthy (duration 0 = healed, not yet activated). Real injuries: `/injuries.htm` or each roster page's `#injuries` table |
 

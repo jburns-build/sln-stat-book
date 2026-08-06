@@ -60,6 +60,7 @@ jobs:
           python3 scripts/scrape_playoffs.py
           python3 scripts/scrape_ndl.py            # NDL: current season only (no history exists)
           python3 scripts/scrape_allstar.py        # all-star appearances (per-season box scores)
+          python3 scripts/scrape_fa.py             # current free-agent pool (1 page)
           python3 scripts/build_players_dataset.py
           python3 scripts/build_players_dataset.py --league ndl
 
