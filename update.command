@@ -5,21 +5,24 @@
 # On a Mac you can double-click this file in Finder to run it.
 cd "${0:A:h}" || exit 1
 
-echo "1/7  Refreshing SLN rosters (live season always re-fetched)…"
+echo "1/8  Refreshing SLN rosters (live season always re-fetched)…"
 python3 scripts/scrape_rosters_gap.py   || exit 1
-echo "2/7  Refreshing award pages…"
+echo "2/8  Refreshing award pages…"
 python3 scripts/scrape_awards.py        || exit 1
-echo "3/7  Refreshing playoff/champion pages…"
+echo "3/8  Refreshing playoff/champion pages…"
 python3 scripts/scrape_playoffs.py      || exit 1
-echo "4/7  Refreshing NDL (developmental league)…"
+echo "4/8  Refreshing NDL (developmental league)…"
 python3 scripts/scrape_ndl.py           || exit 1
-echo "5/7  Rebuilding datasets…"
+echo "5/8  Rebuilding datasets…"
 python3 scripts/build_players_dataset.py           || exit 1
 python3 scripts/build_players_dataset.py --league ndl || exit 1
-echo "6/7  Refreshing career records (retired cached, actives re-fetched)…"
+echo "6/8  Refreshing career records (retired cached, actives re-fetched)…"
 python3 scripts/scrape_careers.py         || exit 1
 python3 scripts/scrape_allstar.py         || exit 1
-echo "7/7  Rebuilding webpages…"
+echo "7/8  Archiving NDL careers + linking the two leagues…"
+python3 scripts/scrape_ndl_careers.py     || exit 1
+python3 scripts/link_leagues.py           || exit 1
+echo "8/8  Rebuilding webpages…"
 python3 scripts/build_site.py             || exit 1
 python3 scripts/build_site.py --league ndl || exit 1
 python3 scripts/build_records.py          || exit 1

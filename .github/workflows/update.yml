@@ -66,25 +66,31 @@ jobs:
 
       - name: Career records
         env:
-          CAREERS_BUDGET_SECONDS: "720"   # cap fetch time; fall back to cache past it
+          CAREERS_BUDGET_SECONDS: "720"       # cap fetch time; fall back to cache past it
+          NDL_CAREERS_BUDGET_SECONDS: "300"
         run: |
           if [ "${{ steps.mode.outputs.careers }}" = "full" ]; then
             echo "full career refresh (re-fetch active players; 12-min fetch budget)"
             # live-season box scores first (~15 new boxes/day; capped at 4 min)
             BOXES_BUDGET_SECONDS=240 python3 scripts/scrape_boxes.py --only=current
             python3 scripts/scrape_careers.py
+            # NDL history lives ONLY on the live player pages — no archive exists,
+            # so this cache IS the record. It sweeps the id space on a rollover.
+            python3 scripts/scrape_ndl_careers.py
           else
             echo "cache-only career build (no fetch)"
             python3 scripts/scrape_careers.py --cache-only
+            python3 scripts/scrape_ndl_careers.py --cache-only
           fi
+          python3 scripts/link_leagues.py     # join the two leagues by name
 
       - name: Persist refreshed career cache
         if: steps.mode.outputs.careers == 'full'
         run: |
-          if ! git diff --quiet -- data/careers.json data/box_agg.json; then
+          if ! git diff --quiet -- data/careers.json data/box_agg.json data/ndl_careers.json; then
             git config user.name "statbook-bot"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data/careers.json data/box_agg.json
+            git add data/careers.json data/box_agg.json data/ndl_careers.json
             git commit -m "auto: refresh career cache"
             git push
           else
@@ -132,6 +138,16 @@ jobs:
           print(f"[records] {len(careers)} careers, {act} active")
           if len(careers) < 1500 or act < 200:
               sys.exit("ERROR: career records look incomplete — refusing to publish.")
+          # The NDL archive can only grow — every season captured is a season the
+          # league itself no longer publishes anywhere.
+          ndl = json.load(open("out/ndl_careers.json"))["records"]
+          nrows = sum(len(r["rows"]) for r in ndl.values())
+          print(f"[ndl] {len(ndl)} archived NDL careers, {nrows} player-seasons")
+          if len(ndl) < 300 or nrows < 1500:
+              sys.exit("ERROR: NDL career archive looks incomplete — refusing to publish.")
+          xl = json.load(open("out/cross_league.json"))
+          print(f"[ndl] {len(xl['links'])} players linked across leagues, "
+                f"{len(xl['rejected'])} name matches rejected")
           shoot = json.load(open("out/season_shooting.json"))["years"]
           nrows = sum(len(v) for v in shoot.values())
           print(f"[adv] season shooting: {nrows} player-season rows, {len(shoot)} years")

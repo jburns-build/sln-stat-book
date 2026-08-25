@@ -62,6 +62,22 @@ if LEAGUE == "sln" and os.path.exists(_ff):
                 _n += 1
         print(f"free agents: {len(_fa)} in pool, flagged {_n} rows across {sorted(_newest)}")
 
+# Cross-league careers (link_leagues.py). The leagues don't share an id space,
+# so these are joined by NAME and guarded on career shape — see that script.
+# The SLN book gets each player's NDL seasons the way Baseball-Reference shows
+# a minor-league line; the NDL book gets the SLN seasons they were called up to.
+_xf = f"{ROOT}/out/cross_league.json"
+ds["xl"] = None
+if os.path.exists(_xf):
+    _xl = json.load(open(_xf))
+    _side = "ndl" if LEAGUE == "sln" else "sln"
+    _rows = {n: r for n, r in _xl[_side].items()
+             if any(p["name"] == n for p in ds["players"])}
+    if _rows:
+        ds["xl"] = {"side": _side, "cols": _xl["cols"], "rows": _rows}
+        print(f"cross-league: {len(_rows)} players on this side carry "
+              f"an {_side.upper()} career")
+
 DATA_JS = json.dumps(ds, separators=(",", ":"))
 # Build time shown to readers, in US Pacific (auto PST/PDT via the tz database)
 BUILT = datetime.datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%b %d, %Y · %-I:%M %p %Z")
@@ -146,6 +162,10 @@ __SWITCH_CSS__
   .team{color:var(--muted);font-size:13px}
   .rk{color:var(--muted);font-size:12px;text-align:right}
   .trophy{cursor:default;margin-left:5px;font-size:12px;letter-spacing:-1px}
+  .pos.xl{margin-left:5px;min-width:0;background:#e6f0e8;color:#1d6b3c;
+    font-size:10px;letter-spacing:.4px;cursor:default}
+  tr.xlmove td{background:#f2f7ff}
+  tr.xltot td{border-top:2px solid var(--line);font-weight:700;background:var(--zebra)}
   .cmp{margin-left:6px;cursor:pointer;opacity:.5;font-size:12px;border:none;background:none;padding:0}
   .cmp:hover{opacity:1}
   td.hl1{background:var(--hl1);font-weight:800}
@@ -389,6 +409,96 @@ function esc(s){ return (s+'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>'
 function trophy(p){ return p.awards&&p.awards.length
   ? `<span class="trophy" title="${esc(p.awards.join(' · '))}">🏅</span>` : ''; }
 
+// ---- cross-league careers (NDL <-> SLN), joined by name in link_leagues.py ----
+const XL = DS.xl || null;
+const XL_OTHER = XL ? (XL.side==='ndl' ? 'NDL' : 'SLN') : '';
+// Normalise either side's stored shape into one row object. The NDL side is
+// stored as the raw stats-page line [year, team, ...cols] with makes and
+// attempts, so its percentages are computed here; the SLN side is already
+// per-game roster data.
+function xlRows(name){
+  if(!XL) return null;
+  const rec=XL.rows[name]; if(!rec) return null;
+  if(XL.side==='sln') return {rec, rows:rec.rows};
+  const at=k=>XL.cols.indexOf(k)+2;                 // +2: rows start [year, team]
+  const rows=rec.rows.map(r=>{
+    const fga=r[at('FGA')], fta=r[at('FTA')], tpa=r[at('3PA')];
+    return {yr:r[0], team:r[1], g:r[at('Games')], mpg:r[at('MPG')], ppg:r[at('PPG')],
+            rpg:r[at('RPG')], apg:r[at('APG')], spg:r[at('SPG')], bpg:r[at('BPG')],
+            tpg:r[at('TOPG')],
+            fgp: fga? r[at('FG')]/fga : null,
+            ftp: fta? r[at('FT')]/fta : null,
+            tpp: tpa? r[at('3P')]/tpa : null};
+  });
+  return {rec, rows};
+}
+function hasXL(name){ return !!(XL && XL.rows[name]); }
+function xlBadge(name){
+  if(!hasXL(name)) return '';
+  const r=xlRows(name), y=r.rows.map(x=>x.yr);
+  return `<span class="pos xl" title="${XL_OTHER} career: ${Math.min(...y)}–${Math.max(...y)}`
+    +` — open this player to see it">${XL_OTHER}</span>`;
+}
+const XL_COLS=[
+  {k:'yr',t:'Year',txt:true},{k:'team',t:'Team',txt:true},{k:'g',t:'G'},
+  {k:'mpg',t:'MPG',d:1},{k:'ppg',t:'PPG',d:1},{k:'rpg',t:'RPG',d:1},
+  {k:'apg',t:'APG',d:1},{k:'spg',t:'SPG',d:1},{k:'bpg',t:'BPG',d:1},
+  {k:'tpg',t:'TPG',d:1},{k:'fgp',t:'FG%',pct:true},{k:'ftp',t:'FT%',pct:true},
+  {k:'tpp',t:'3P%',pct:true},
+];
+function xlSection(name){
+  const x=xlRows(name); if(!x) return '';
+  const {rec,rows}=x;
+  const cu=rec.move, up=rec.dir==='up';
+  const note = XL.side==='ndl'
+    ? `Developmental-league seasons, read from this player's NDL page. The league `
+      +`publishes no NDL archive, so this is whatever their page still carries.`
+    : `Top-flight SLN seasons.`;
+  const mv = cu
+    ? ` <b>${up?'Called up':'Sent down'} in ${cu}</b> — both leagues claim part of `
+      +`that season, so neither line is a full year.`
+    : '';
+  let h=`<div class="pv-sub" style="margin-top:22px;margin-bottom:8px">`
+    +`<b>${XL_OTHER} career</b> — ${note}${mv}</div>`;
+  h+=`<div class="tablewrap"><table><thead><tr>`;
+  XL_COLS.forEach(c=> h+=`<th class="${c.txt?'txt':''}">${c.t}</th>`);
+  h+=`</tr></thead><tbody>`;
+  rows.forEach(r=>{
+    h+=`<tr${r.yr===cu?' class="xlmove"':''}>`;
+    XL_COLS.forEach(c=>{
+      let v;
+      if(c.k==='yr')        v=r.yr+(r.yr===cu?` <span class="delta up" title="${up?'Called up to the SLN':'Sent down to the NDL'} this season">⇄</span>`:'');
+      else if(c.k==='team') v=esc(r.team||'—');
+      else if(c.pct)        v=fmtPct(r[c.k]);
+      else                  v=fmtNum(r[c.k],c.d);
+      h+=`<td class="${c.txt?'txt':''}">${v}</td>`;
+    });
+    h+=`</tr>`;
+  });
+  // career line: games summed, rates games-weighted (the source pages publish
+  // their own career row, but only for the seasons still on the page)
+  const G=rows.reduce((n,r)=>n+(r.g||0),0);
+  h+=`<tr class="xltot">`;
+  XL_COLS.forEach(c=>{
+    let v;
+    if(c.k==='yr')        v=`<b>${XL_OTHER} career</b>`;
+    else if(c.k==='team'){ const n=rows.filter(r=>r.g>0).length; v=`${n} season${n===1?'':'s'}`; }
+    else if(c.k==='g')    v=G;
+    else { const a=wavg(rows,c.k); v=c.pct?fmtPct(a):fmtNum(a,c.d); }
+    h+=`<td class="${c.txt?'txt':''}">${v}</td>`;
+  });
+  h+=`</tr></tbody></table></div>`;
+  const bits=[];
+  if(rec.dd)    bits.push(`${rec.dd} double-double${rec.dd>1?'s':''}`);
+  if(rec.td)    bits.push(`${rec.td} triple-double${rec.td>1?'s':''}`);
+  if(rec.rings) bits.push(`${rec.rings} 🏆`);
+  if(bits.length) h+=`<div class="pv-sub" style="margin-top:6px">${XL_OTHER} career: ${bits.join(' · ')}</div>`;
+  if(rec.awards && rec.awards.length)
+    h+=`<div class="pv-sub" style="margin-top:6px">`
+      +rec.awards.map(a=>`<span class="awd">${esc(a)}</span>`).join('')+`</div>`;
+  return h;
+}
+
 // letter-grade ordering for ability change arrows
 const GRADES=['F','D-','D','D+','C-','C','C+','B-','B','B+','A-','A','A+'];
 const gradeVal=(g)=>{ const i=GRADES.indexOf((g||'').trim()); return i<0?null:i; };
@@ -467,7 +577,7 @@ function renderTable(){
     cols().forEach(c=>{
       if(c.k==='rk'){ html+=`<td class="txt rk">${i+1}</td>`; return; }
       if(c.k==='name'){ html+=`<td class="txt name"><a href="${playerUrl(p)}" target="_blank" rel="noopener">${esc(p.name)}</a>`
-        +trophy(p)+`<button class="cmp" title="Compare ${esc(p.name)} across years" data-nm="${esc(p.name)}">📊</button></td>`; return; }
+        +trophy(p)+xlBadge(p.name)+`<button class="cmp" title="Compare ${esc(p.name)} across years" data-nm="${esc(p.name)}">📊</button></td>`; return; }
       if(c.k==='pos'){ html+=`<td class="txt"><span class="pos">${esc(p.pos||'')}</span></td>`; return; }
       if(c.k==='team'){ html+=`<td class="txt team"><a href="${teamUrl(p)}"${recAttr(p)} target="_blank" rel="noopener">${esc(p.team)}</a>${champBadge(p)}${p.fa?'<span class="pos" style="margin-left:5px;background:#fde8cf;color:#8a5a12" title="Currently a free agent">FA</span>':''}</td>`; return; }
       const rk = ranks[c.k] && (p.id in ranks[c.k]) ? ranks[c.k][p.id] : null;
@@ -609,6 +719,7 @@ function renderPlayer(){
   }
   h+=`</tbody></table></div>`;
   h+=abilSection(sel);
+  h+=xlSection(name);
   pv.innerHTML=h;
 
   pv.querySelectorAll('button[data-yr]').forEach(b=> b.onclick=()=>{
