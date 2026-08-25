@@ -130,6 +130,7 @@ __SWITCH_CSS__
     vertical-align:-2px;margin-right:5px;border:1px solid rgba(0,0,0,.08)}
   .banner{background:#eef4ff;border:1px solid #cfe0ff;border-radius:9px;padding:10px 14px;
     margin-bottom:12px;font-size:14px;display:flex;align-items:center;gap:10px}
+  .banner.warn{background:#fff6e6;border-color:#f2dcb0;color:#6b4c12;display:block}
   .banner button{margin-left:auto}
   button.act{font:inherit;font-weight:600;padding:7px 13px;border:1px solid var(--accent);
     background:var(--accent);color:#fff;border-radius:7px;cursor:pointer}
@@ -247,6 +248,7 @@ __SWITCH_CSS__
 
   <div id="tableview">
     <div class="banner" id="banner" hidden></div>
+    <div class="banner warn" id="partial" hidden></div>
     <div class="legend">
       <span>Season leaders:</span>
       <span><span class="sw" style="background:var(--hl1)"></span>1st</span>
@@ -318,11 +320,22 @@ function recMatch(p,mode){                 // '' = any, 'losing' = W<L, 'winning
   return mode==='losing' ? r[0]<r[1] : r[0]>r[1];
 }
 
-// url builders (season-scoped; current season lives at the top level)
-function playerUrl(p){ return p.season==='current'
-  ? `${SITE}/players/player${p.id}.htm` : `${SITE}/history/${p.season}/players/player${p.id}.htm`; }
-function teamUrl(p){ return p.season==='current'
-  ? `${SITE}/rosters/roster${p.rn}.htm` : `${SITE}/history/${p.season}/rosters/roster${p.rn}.htm`; }
+// url builders (season-scoped; current season lives at the top level).
+// Rows reconstructed from the NDL career archive (p.hist) have no season-scoped
+// page upstream — the league never published one. Their player page still
+// exists at the top level, but only while that id belongs to the same player
+// (p.live); once it is recycled the link would point at a stranger, so it goes.
+function playerUrl(p){
+  if(p.hist) return p.live ? `${SITE}/players/player${p.id}.htm` : null;
+  return p.season==='current'
+    ? `${SITE}/players/player${p.id}.htm` : `${SITE}/history/${p.season}/players/player${p.id}.htm`; }
+function teamUrl(p){
+  if(p.hist) return null;                 // archive keeps a nickname, not a roster number
+  return p.season==='current'
+    ? `${SITE}/rosters/roster${p.rn}.htm` : `${SITE}/history/${p.season}/rosters/roster${p.rn}.htm`; }
+// link when there is somewhere to go, plain text when there isn't
+function linkOr(url,label,attrs){
+  return url ? `<a href="${url}"${attrs||''} target="_blank" rel="noopener">${label}</a>` : label; }
 
 const BASIC_COLS = [
   {k:'rk',  t:'#'},
@@ -506,7 +519,12 @@ const ABIL_KEYS=['In','Out','Hn','Df','Reb','Pot'];
 const ABIL_FULL={In:'Inside',Out:'Outside',Hn:'Handling',Df:'Defense',Reb:'Rebounding',Pot:'Potential'};
 
 // --- per-year leader ranks: ranks[stat][id] = 0..9 (best=0), only kept if top 10 ---
+const PARTIAL={}; DS.seasons.forEach(s=>{ if(s.partial) PARTIAL[s.key]=s.cov; });
 function computeRanks(seasonKey){
+  // A season rebuilt from the career archive holds only the players whose ids
+  // are still allocated. Highlighting "leaders" out of a partial league would
+  // invent records that never happened, so partial seasons get no highlighting.
+  if(PARTIAL[seasonKey]) return {};
   const pool=DS.players.filter(p=>p.season===seasonKey);
   const ranks={};
   hilite().forEach(h=>{
@@ -576,10 +594,10 @@ function renderTable(){
     let html='';
     cols().forEach(c=>{
       if(c.k==='rk'){ html+=`<td class="txt rk">${i+1}</td>`; return; }
-      if(c.k==='name'){ html+=`<td class="txt name"><a href="${playerUrl(p)}" target="_blank" rel="noopener">${esc(p.name)}</a>`
+      if(c.k==='name'){ html+=`<td class="txt name">${linkOr(playerUrl(p),esc(p.name))}`
         +trophy(p)+xlBadge(p.name)+`<button class="cmp" title="Compare ${esc(p.name)} across years" data-nm="${esc(p.name)}">📊</button></td>`; return; }
       if(c.k==='pos'){ html+=`<td class="txt"><span class="pos">${esc(p.pos||'')}</span></td>`; return; }
-      if(c.k==='team'){ html+=`<td class="txt team"><a href="${teamUrl(p)}"${recAttr(p)} target="_blank" rel="noopener">${esc(p.team)}</a>${champBadge(p)}${p.fa?'<span class="pos" style="margin-left:5px;background:#fde8cf;color:#8a5a12" title="Currently a free agent">FA</span>':''}</td>`; return; }
+      if(c.k==='team'){ html+=`<td class="txt team">${linkOr(teamUrl(p),esc(p.team),recAttr(p))}${champBadge(p)}${p.fa?'<span class="pos" style="margin-left:5px;background:#fde8cf;color:#8a5a12" title="Currently a free agent">FA</span>':''}</td>`; return; }
       const rk = ranks[c.k] && (p.id in ranks[c.k]) ? ranks[c.k][p.id] : null;
       const cls = rk!==null ? ' class="'+tierClass(rk)+'"' : '';
       html+=`<td${cls}>${cellText(p,c)}</td>`;
@@ -590,6 +608,17 @@ function renderTable(){
   el('empty').hidden = rows.length>0;
   const total=DS.players.filter(p=>p.season===seasonSel.value).length;
   el('count').innerHTML=`<b>${rows.length}</b> of ${total} players`;
+  // reconstructed-season caveat: say plainly what is missing from this year
+  const pb=el('partial'), cov=PARTIAL[seasonSel.value];
+  if(cov){
+    pb.hidden=false;
+    pb.innerHTML=`<b>${yearNum(seasonSel.value)} is reconstructed from player career pages.</b> `
+      +`The league never archived NDL seasons, so this year holds only the `
+      +`<b>${Math.round(cov*100)}%</b> of players whose pages still exist — everyone who `
+      +`retired or was called up before their id was reused is missing. Season leaders are `
+      +`not highlighted, and age, ability grades and salary aren't in the archive.`;
+  } else pb.hidden=true;
+
   // "search resolved to one player" banner
   const q=el('q').value.trim().toLowerCase();
   const names=[...new Set(rows.map(r=>r.name))];
@@ -627,7 +656,7 @@ const PV_COLS=[
 ];
 function pvCell(p,c){
   if(c.k==='yr')   return yearNum(p.season)+(PLAYED[p.season]?'':' *');
-  if(c.k==='team') return `<a href="${teamUrl(p)}"${recAttr(p)} target="_blank" rel="noopener">${esc(p.team)}</a>${champBadge(p)}`;
+  if(c.k==='team') return linkOr(teamUrl(p),esc(p.team),recAttr(p))+champBadge(p);
   if(c.k==='awards') return (p.awards&&p.awards.length)? p.awards.map(a=>`<span class="awd">${esc(a)}</span>`).join('') : '<span style="color:#c2c8d2">—</span>';
   if(c.money) return fmtMoney(p[c.k]);
   if(c.pct)   return fmtPct(p[c.k]);

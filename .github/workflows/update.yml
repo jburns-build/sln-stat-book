@@ -82,7 +82,8 @@ jobs:
             python3 scripts/scrape_careers.py --cache-only
             python3 scripts/scrape_ndl_careers.py --cache-only
           fi
-          python3 scripts/link_leagues.py     # join the two leagues by name
+          python3 scripts/link_leagues.py       # join the two leagues by name
+          python3 scripts/build_ndl_history.py   # archived NDL seasons -> Year dropdown
 
       - name: Persist refreshed career cache
         if: steps.mode.outputs.careers == 'full'
@@ -145,6 +146,10 @@ jobs:
           print(f"[ndl] {len(ndl)} archived NDL careers, {nrows} player-seasons")
           if len(ndl) < 300 or nrows < 1500:
               sys.exit("ERROR: NDL career archive looks incomplete — refusing to publish.")
+          nd = json.load(open("out/ndl_players_dataset.json"))
+          hist = [s for s in nd["seasons"] if s["key"] != "current"]
+          print(f"[ndl] {len(hist)} reconstructed seasons in the Year dropdown: "
+                + ", ".join(f"{s['order']} {s.get('cov',1)*100:.0f}%" for s in hist))
           xl = json.load(open("out/cross_league.json"))
           print(f"[ndl] {len(xl['links'])} players linked across leagues, "
                 f"{len(xl['rejected'])} name matches rejected")

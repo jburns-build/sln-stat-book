@@ -158,8 +158,11 @@ def main():
 
     ds = json.load(open(DS)) if os.path.exists(DS) else {"players": [], "seasons": []}
     season_year = max((s.get("order", 0) for s in ds.get("seasons", [])), default=0)
-    # current NDL rosters: the only players whose careers can still move
-    roster = {p["id"]: (p["name"], int(p.get("g") or 0)) for p in ds["players"]}
+    # current NDL rosters: the only players whose careers can still move.
+    # build_ndl_history.py folds archived seasons into this same file, so filter
+    # to the live season or old rows would masquerade as current roster spots.
+    roster = {p["id"]: (p["name"], int(p.get("g") or 0)) for p in ds["players"]
+              if p["season"] == "current"}
 
     fetched_at = (cache.get("_fetched_at", "unknown") if CACHE_ONLY else
                   datetime.datetime.now(ZoneInfo("America/Los_Angeles")).strftime(
