@@ -7,14 +7,21 @@ Three things come out of it.
    A miss prints its nearest spellings, because the leagues share no id space
    and the join runs on the name, so one wrong letter loses a player.
 
-2. INTRA-NDL TRADES — a designated player can be traded between NDL clubs, and
-   that move is logged NOWHERE. /NDL/transactions.htm is frozen at the 2028
-   offseason and carries only retirements, re-signings and draft picks — no
-   trade row in its entire history — and the SLN transaction log never mentions
-   the NDL at all. So the only evidence a trade happened is the disagreement
-   between the club the ledger says designated a player and the club his NDL
-   career page says he actually played for. This report is the closest thing to
-   an NDL transaction log that exists.
+2. RIGHTS MOVEMENT — a designated player follows his SLN rights. Trade him and
+   he moves to the acquiring club's NDL affiliate, without being recalled. The
+   ledger annotates one such move in flight ("Titan Williams ... *IN PENDING
+   TRADE TO UTAH*"), and his career page shows exactly that: Windy City Bulls
+   in 2038, Salt Lake City Stars in 2039.
+
+   Nothing logs these. /NDL/transactions.htm is frozen at the 2028 offseason
+   and carries only retirements, re-signings and draft picks — not one trade
+   row in its whole history — and the SLN transaction log never mentions the
+   NDL. So the affiliate a player actually turns out for IS the record of who
+   holds him, and this report reconstructs the moves from it.
+
+   Detection is a change of owning club across the designation, not merely
+   "never played for his own affiliate" — that weaker test misses a player
+   traded mid-designation, who did start out at home.
 
 3. LEDGER ANOMALIES — entries whose years can't be right.
 
@@ -31,8 +38,7 @@ LEDGER = f"{ROOT}/data/ndl_designations.json"
 ARCHIVE = f"{ROOT}/data/ndl_careers.json"
 OUT = f"{ROOT}/out/designation_reconcile.json"
 
-# teams the archive never treats as a club
-PSEUDO = {"FA", "Draft"}
+PSEUDO = {"FA", "Draft"}          # not clubs
 
 
 def main():
@@ -47,45 +53,66 @@ def main():
         by_name[r["name"]].append(r)
     nicknames = {row[1] for r in recs.values() for row in r["rows"]} - PSEUDO
 
-    def affiliate_nick(full):
+    def nick_of(full):
         """'Fort Wayne Mad Ants' -> 'Mad Ants'; 'Raptors 905' -> '905'."""
         hits = [n for n in nicknames if full and full.endswith(n)]
         return max(hits, key=len) if hits else None
+
+    # every affiliate the ledger declares -> the SLN club that owns it, so an
+    # NDL nickname can be read back as "whose player is this?"
+    owner = {}
+    for d in des:
+        n = nick_of(d["ndl"])
+        if n:
+            owner[n] = d["sln"]
 
     def career(name):
         c = by_name.get(name) or by_name.get(alias.get(name, ""), None)
         return max(c, key=lambda r: len(r["rows"])) if c else None
 
     active = [d for d in des if d["status"] == "active"]
-    held, missing = [], []
-    for d in active:
-        (held if career(d["name"]) else missing).append(d)
+    held = [d for d in active if career(d["name"])]
+    missing = [d for d in active if not career(d["name"])]
 
-    trades, checked = [], 0
+    moves, checked = [], 0
     for d in des:
-        rec = career(d["name"])
-        nick = affiliate_nick(d["ndl"])
-        if not rec or not nick:
+        rec, home = career(d["name"]), nick_of(d["ndl"])
+        if not rec or not home:
             continue
-        # the seasons this designation was in force
         span = [row for row in rec["rows"]
                 if row[0] >= d["year"] and (not d["end"] or row[0] <= d["end"])
                 and row[1] not in PSEUDO]
         if not span:
             continue
         checked += 1
-        teams = [row[1] for row in span]
-        if nick in teams:
-            continue                      # played for his own affiliate at some point
-        trades.append({
+        # collapse the span into consecutive stints at one club
+        stints = []
+        for row in span:
+            y, team, g = row[0], row[1], row[2]
+            if stints and stints[-1]["team"] == team:
+                stints[-1]["to"], stints[-1]["g"] = y, stints[-1]["g"] + g
+            else:
+                stints.append({"team": team, "from": y, "to": y, "g": g})
+        if len(stints) == 1 and stints[0]["team"] == home:
+            continue                                  # stayed home all along
+        # Where the path ENDS is the test of whether the ledger is current: the
+        # ledger files a player under whoever ended up with him, so a path that
+        # lands on his ledger club is just history. One landing anywhere else is
+        # a move the ledger has not caught up with — which is exactly what the
+        # "*IN PENDING TRADE TO UTAH*" annotation describes, on a player whose
+        # career page says the trade already happened.
+        stale = stints[-1]["team"] != home
+        moves.append({
             "name": d["name"], "sln": d["sln"], "affiliate": d["ndl"],
             "designated": d["year"], "end": d["end"], "status": d["status"],
-            "played_for": [[row[0], row[1], row[2]] for row in span],
+            "notes": d.get("notes"), "stale": stale,
+            "now": owner.get(stints[-1]["team"], "?"),
+            "stints": [dict(s, owner=owner.get(s["team"], "?")) for s in stints],
         })
 
     json.dump({"active": len(active), "held": len(held),
                "missing": [d["name"] for d in missing],
-               "trades": trades, "checked": checked},
+               "moves": moves, "checked": checked},
               open(OUT, "w"), separators=(",", ":"))
 
     print(f"watchlist: {len(held)}/{len(active)} active designations archived")
@@ -97,15 +124,29 @@ def main():
         print(f"  !! no NDL career for {d['name']} ({d['sln']}, slot {d['slot']}, "
               f"since {d['year']}){hint}")
 
-    print(f"\nintra-NDL trades — designated by one club, played for another "
-          f"({len(trades)} of {checked} designations cross-checkable):")
-    print("  (no NDL transaction log exists; this disagreement is the only trace)")
-    for t in sorted(trades, key=lambda t: -t["designated"]):
-        seq = ", ".join(f"{y} {tm} ({g}g)" for y, tm, g in t["played_for"])
-        end = t["end"] or ("active" if t["status"] == "active" else "?")
-        print(f"  {t['name']:22s} {t['sln']:22s} -> {t['affiliate']:24s} "
-              f"{t['designated']}–{end}")
-        print(f"    {'':22s} actually played: {seq}")
+    def show(rows, title, blurb):
+        print(f"\n{title} — {len(rows)}")
+        if blurb:
+            print(f"  {blurb}")
+        for m in sorted(rows, key=lambda m: -m["designated"]):
+            end = m["end"] or ("active" if m["status"] == "active" else "?")
+            path = "  ->  ".join(
+                f"{s['owner']} ({s['team']} {s['from']}" +
+                (f"-{s['to']}" if s['to'] != s['from'] else "") + f", {s['g']}g)"
+                for s in m["stints"])
+            note = f"   [ledger note: {'; '.join(m['notes'])}]" if m["notes"] else ""
+            print(f"  {m['name']:22s} ledger: {m['sln']} {m['designated']}–{end}{note}")
+            print(f"    {'':22s} held by: {path}")
+
+    print(f"\nrights movement while designated — {len(moves)} of {checked} "
+          f"cross-checkable designations reconstructed")
+    print("  (nothing logs NDL trades; the affiliate a player turns out for is "
+          "the only record there is)")
+    show([m for m in moves if not m["stale"]], "  moved and the ledger agrees",
+         "the path ends at the club the ledger files him under")
+    show([m for m in moves if m["stale"]], "  LEDGER LOOKS OUT OF DATE",
+         "the path ends somewhere else — these entries are filed under a club "
+         "that no longer holds the player")
     print(f"\nwrote {OUT}")
 
 
