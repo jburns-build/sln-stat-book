@@ -29,6 +29,7 @@ UA = {"User-Agent": "Mozilla/5.0 (research audit; polite)"}
 B = "https://www.simleaguenirvana.com/NDL"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = f"{ROOT}/data/ndl_careers.json"
+LEDGER = f"{ROOT}/data/ndl_designations.json"
 OUT = f"{ROOT}/out/ndl_careers.json"
 DS = f"{ROOT}/out/ndl_players_dataset.json"
 
@@ -168,7 +169,8 @@ def main():
                   datetime.datetime.now(ZoneInfo("America/Los_Angeles")).strftime(
                       "%b %d, %Y · %-I:%M %p %Z"))
 
-    stats = {"fetched": 0, "cached": 0, "new": 0, "updated": 0, "swept": 0, "skipped": 0}
+    stats = {"fetched": 0, "cached": 0, "new": 0, "updated": 0, "swept": 0,
+             "skipped": 0, "watched": 0}
 
     def store(rec, chk=None):
         k = key_of(rec["id"], rec["name"])
@@ -188,6 +190,32 @@ def main():
             stats["cached"] += 1
         else:
             todo.append(pid)
+
+    # ---- 1b. the designation watchlist ----
+    # Players an SLN club sent down (parse_designations.py) are the ones whose
+    # NDL line is worth keeping — and the ones the site is guaranteed to forget,
+    # since a recall frees their id for the next generated rookie. Six slots per
+    # club caps this at 174, so refresh every active designation on every full
+    # run, even after they drop off an NDL roster page. That is exactly the
+    # window in which their career would otherwise disappear.
+    watch, unlocatable = set(), []
+    if os.path.exists(LEDGER):
+        active = {r["name"] for r in json.load(open(LEDGER))["designations"]
+                  if r.get("status") == "active"}
+        ids_by_name = {}
+        for rec in recs.values():
+            ids_by_name.setdefault(rec["name"], set()).add(rec["id"])
+        for name in sorted(active):
+            found = ids_by_name.get(name)
+            if found:
+                watch |= found
+            else:
+                unlocatable.append(name)
+        todo = sorted(set(todo) | watch)
+        print(f"watchlist: {len(active)} active designations -> {len(watch)} ids "
+              f"({len(unlocatable)} not locatable on the site)")
+        for n in unlocatable:
+            print(f"  !! no NDL page for active designation: {n}")
 
     def run(ids, label, chk_from_roster=False):
         if not ids:

@@ -20,6 +20,7 @@ echo "6/8  Refreshing career records (retired cached, actives re-fetched)…"
 python3 scripts/scrape_careers.py         || exit 1
 python3 scripts/scrape_allstar.py         || exit 1
 echo "7/8  Archiving NDL careers + linking the two leagues…"
+python3 scripts/parse_designations.py     || exit 1
 python3 scripts/scrape_ndl_careers.py     || exit 1
 python3 scripts/link_leagues.py           || exit 1
 python3 scripts/build_ndl_history.py      || exit 1

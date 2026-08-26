@@ -75,11 +75,14 @@ jobs:
             BOXES_BUDGET_SECONDS=240 python3 scripts/scrape_boxes.py --only=current
             python3 scripts/scrape_careers.py
             # NDL history lives ONLY on the live player pages — no archive exists,
-            # so this cache IS the record. It sweeps the id space on a rollover.
+            # so this cache IS the record. The designation ledger names the
+            # players worth protecting; they are refreshed on every full run.
+            python3 scripts/parse_designations.py
             python3 scripts/scrape_ndl_careers.py
           else
             echo "cache-only career build (no fetch)"
             python3 scripts/scrape_careers.py --cache-only
+            python3 scripts/parse_designations.py
             python3 scripts/scrape_ndl_careers.py --cache-only
           fi
           python3 scripts/link_leagues.py       # join the two leagues by name
@@ -146,6 +149,14 @@ jobs:
           print(f"[ndl] {len(ndl)} archived NDL careers, {nrows} player-seasons")
           if len(ndl) < 300 or nrows < 1500:
               sys.exit("ERROR: NDL career archive looks incomplete — refusing to publish.")
+          des = json.load(open("data/ndl_designations.json"))["designations"]
+          act = [d for d in des if d["status"] == "active"]
+          arch = {r["name"] for r in ndl.values()}
+          held = sum(1 for d in act if d["name"] in arch)
+          print(f"[ndl] {len(des)} designations, {len(act)} active; "
+                f"{held}/{len(act)} of the watchlist archived")
+          if len(des) < 1000 or len(act) < 50:
+              sys.exit("ERROR: designation ledger looks incomplete — refusing to publish.")
           nd = json.load(open("out/ndl_players_dataset.json"))
           hist = [s for s in nd["seasons"] if s["key"] != "current"]
           print(f"[ndl] {len(hist)} reconstructed seasons in the Year dropdown: "
