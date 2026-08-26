@@ -152,7 +152,11 @@ jobs:
           des = json.load(open("data/ndl_designations.json"))["designations"]
           act = [d for d in des if d["status"] == "active"]
           arch = {r["name"] for r in ndl.values()}
-          held = sum(1 for d in act if d["name"] in arch)
+          # ledger spellings can differ from the site's by a letter
+          al = json.load(open("data/ndl_name_aliases.json"))["aliases"]
+          alias = {k: v["site"] for k, v in al.items()}
+          held = sum(1 for d in act if d["name"] in arch
+                     or alias.get(d["name"]) in arch)
           print(f"[ndl] {len(des)} designations, {len(act)} active; "
                 f"{held}/{len(act)} of the watchlist archived")
           if len(des) < 1000 or len(act) < 50:

@@ -24,6 +24,8 @@ Fetch policy (mirrors scrape_careers.py):
 import json, os, re, sys, time, datetime, urllib.request, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ndl_names import load_aliases, suggest
 
 UA = {"User-Agent": "Mozilla/5.0 (research audit; polite)"}
 B = "https://www.simleaguenirvana.com/NDL"
@@ -205,17 +207,32 @@ def main():
         ids_by_name = {}
         for rec in recs.values():
             ids_by_name.setdefault(rec["name"], set()).add(rec["id"])
+        # the ledgers are hand-typed; confirmed spelling corrections live in
+        # data/ndl_name_aliases.json so the ledger text stays as written
+        alias = load_aliases()
+        aliased = 0
         for name in sorted(active):
             found = ids_by_name.get(name)
+            if not found and name in alias:
+                found = ids_by_name.get(alias[name])
+                if found:
+                    aliased += 1
             if found:
                 watch |= found
             else:
                 unlocatable.append(name)
         todo = sorted(set(todo) | watch)
-        print(f"watchlist: {len(active)} active designations -> {len(watch)} ids "
-              f"({len(unlocatable)} not locatable on the site)")
+        alias_note = f", {aliased} via an alias" if aliased else ""
+        print(f"watchlist: {len(active)} active designations -> {len(watch)} ids"
+              f"{alias_note} ({len(unlocatable)} not locatable on the site)")
+        # a miss is usually a typo, so name the nearest candidates rather than
+        # leaving it to be chased down by hand
         for n in unlocatable:
-            print(f"  !! no NDL page for active designation: {n}")
+            near = suggest(n, ids_by_name)
+            hint = ("  — did you mean " +
+                    ", ".join(f"{c} (id {min(ids_by_name[c])})" for c in near) + "?"
+                    ) if near else ""
+            print(f"  !! no NDL page for active designation: {n}{hint}")
 
     def run(ids, label, chk_from_roster=False):
         if not ids:

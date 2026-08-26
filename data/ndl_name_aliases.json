@@ -1,0 +1,33 @@
+{
+  "_comment": [
+    "Ledger spelling -> the spelling the site uses. The designation ledgers are",
+    "hand-typed, so a player can be recorded under a near-miss of his site name;",
+    "the join is by name, so one letter is enough to lose him. Keeping the map",
+    "here means the ledger text stays exactly as the commissioner wrote it.",
+    "Each entry records the NDL player id the identification was verified",
+    "against, and how it was confirmed."
+  ],
+  "aliases": {
+    "Davon McLean": {
+      "site": "Davon Mclean",
+      "id": 46,
+      "verified": "affiliate matches — Miami Heat designation, Sioux Falls Skyforce 2038-2039"
+    },
+    "Devin Wiley": {
+      "site": "Davin Wiley",
+      "id": 25,
+      "verified": "affiliate matches — Boston Celtics designation, Maine Celtics 2038-2039"
+    },
+    "Konnor Reynolds": {
+      "site": "Konner Reynolds",
+      "id": 566,
+      "verified": "affiliate matches — Phoenix Suns designation, Northern Arizona Suns 2038-2039"
+    },
+    "Rashad Crawford": {
+      "site": "Rashard Crawford",
+      "id": 96,
+      "verified": "name only — the ledger files him as a Vancouver protected player, but id96 plays for the Skyforce, not the Memphis Hustle. He is the only Crawford in the NDL who fits, and no Crawford appears on the Hustle at all, so the identification looks right and the club attribution is what's in doubt.",
+      "affiliate_mismatch": true
+    }
+  }
+}
