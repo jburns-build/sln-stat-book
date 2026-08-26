@@ -86,6 +86,8 @@ jobs:
             python3 scripts/scrape_ndl_careers.py --cache-only
           fi
           python3 scripts/link_leagues.py       # join the two leagues by name
+          # the only trace of an intra-NDL trade there is — nothing logs them
+          python3 scripts/reconcile_designations.py
           python3 scripts/build_ndl_history.py   # archived NDL seasons -> Year dropdown
 
       - name: Persist refreshed career cache

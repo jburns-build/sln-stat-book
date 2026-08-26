@@ -23,6 +23,7 @@ echo "7/8  Archiving NDL careers + linking the two leagues…"
 python3 scripts/parse_designations.py     || exit 1
 python3 scripts/scrape_ndl_careers.py     || exit 1
 python3 scripts/link_leagues.py           || exit 1
+python3 scripts/reconcile_designations.py || exit 1
 python3 scripts/build_ndl_history.py      || exit 1
 echo "8/8  Rebuilding webpages…"
 python3 scripts/build_site.py             || exit 1
