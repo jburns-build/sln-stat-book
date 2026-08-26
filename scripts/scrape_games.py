@@ -95,8 +95,10 @@ def day_games(html, full, nick):
             rn = resolve(c[0], full, nick)
             lines.append((rn, int(c[-1]), c[0]))
     resolved = [l for l in lines if l[0] is not None]
-    if not resolved:
-        return []                       # exhibition-only day (All-Star weekend)
+    if lines and not resolved:
+        return "exhib"                  # exhibition-only day (All-Star weekend)
+    if not lines:
+        return []                       # no games on the page at all
     if len(resolved) != len(lines) or len(resolved) % 2:
         return None                     # mixed/odd — parse trouble, fail loudly
     out = []
@@ -126,6 +128,9 @@ def season_from_days(code, s, full, nick):
         if g is None:
             print(f"  !! s{code} day {d}: unparseable — season left incomplete")
             return fetched
+        if g == "exhib":
+            s["day"] = d                # All-Star day: played, no team games
+            continue
         if not g:
             if code == "current":
                 break                   # unplayed day
