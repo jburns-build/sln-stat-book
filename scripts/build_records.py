@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import branding
 from branding import FAVICON, LOGO_INLINE
+from season import CURRENT_YEAR, archived_codes, year_of
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ds = json.load(open(f"{ROOT}/out/careers_dataset.json"))
@@ -26,7 +27,7 @@ ds = json.load(open(f"{ROOT}/out/careers_dataset.json"))
 # Verified against players' own award boxes (Luka: 7 MVP, 16 All-League 1st).
 AWARD_KEYS = ["MVP", "DPOY", "6th Man", "All-League 1st", "All-Defensive 1st"]
 PRE = {"96": 1996, "97": 1997, "99": 1999}
-def _yr(sc): return 2039 if sc == "current" else PRE.get(sc, 2000 + int(sc))
+def _yr(sc): return CURRENT_YEAR if sc == "current" else PRE.get(sc, 2000 + int(sc))
 
 _pl = json.load(open(f"{ROOT}/out/players_dataset.json"))["players"]
 _YEARS = sorted({_yr(p["season"]) for p in _pl})
@@ -170,8 +171,8 @@ __SWITCH_CSS__
   <div class="cards" id="pergame"></div>
   <h2 class="sect">Awards &amp; honors <span>top 5 each</span></h2>
   <div class="cards" id="awards"></div>
-  <div class="foot">SLN Career Records — top 10 per category across all 43 seasons (1996–2039) · __GUIDE__
-    <span class="dot"></span> = still active in 2039.<br>
+  <div class="foot">SLN Career Records — top 10 per category across all __NSEASONS__ seasons (__FIRSTYEAR__–__CURYEAR__) · __GUIDE__
+    <span class="dot"></span> = still active in __CURYEAR__.<br>
     <b>Career totals last pulled __FETCHED__</b> (refreshed once a day); awards &amp; All-Star update on every refresh.<br>
     <span style="opacity:.85">Page rebuilt <b id="buildstamp">__BUILT__</b> · auto-refreshes every 4 hours ·
     <button id="refreshBtn" class="refresh" hidden>🔄 Refresh now</button>
@@ -251,7 +252,7 @@ function rowHtml(p,i,val,q,extra){
   const tail=extra?`<span class="era">${extra}</span>`:'';
   return `<div class="row${i===0?' rk1':''}${hit}" title="${esc(p.pos||'')} · ${p.first}–${p.last} · ${p.seasons} seasons">`
    + `<span class="n">${i+1}</span>`
-   + `<span class="nm">${nm}${p.active?'<span class="dot" title="Active in 2039"></span>':''}`
+   + `<span class="nm">${nm}${p.active?'<span class="dot" title="Active in __CURYEAR__"></span>':''}`
    + `<span class="era">'${String(p.first).slice(-2)}–'${String(p.last).slice(-2)}</span></span>`
    + tail
    + `<span class="v">${val}</span></div>`;
@@ -313,8 +314,8 @@ function render(){
   renderAwards(q);
   const act=C.filter(p=>p.active).length;
   el('note').innerHTML = mode==='active'
-    ? `Showing the best careers among the <b>${act}</b> players active in 2039.`
-    : `All-time across <b>${C.length.toLocaleString()}</b> players in league history · <span class="dot"></span> = active in 2039.`;
+    ? `Showing the best careers among the <b>${act}</b> players active in __CURYEAR__.`
+    : `All-time across <b>${C.length.toLocaleString()}</b> players in league history · <span class="dot"></span> = active in __CURYEAR__.`;
 }
 el('m-all').onclick=()=>{ mode='all'; el('m-all').classList.add('on'); el('m-act').classList.remove('on'); render(); };
 el('m-act').onclick=()=>{ mode='active'; el('m-act').classList.add('on'); el('m-all').classList.remove('on'); render(); };
@@ -366,6 +367,9 @@ out = (HTML.replace("__DATA__", DATA_JS)
            .replace("__LOGO__", LOGO_INLINE)
            .replace("__SWITCH_CSS__", branding.SWITCH_CSS)
            .replace("__GUIDE__", branding.GUIDE_LINK)
+           .replace("__CURYEAR__", str(CURRENT_YEAR))
+           .replace("__NSEASONS__", str(len(archived_codes()) + 1))
+           .replace("__FIRSTYEAR__", str(year_of(archived_codes()[0])))
            .replace("__SWITCHER__", branding.switcher("Records")))
 path = f"{ROOT}/out/records.html"
 with open(path, "w") as fh:

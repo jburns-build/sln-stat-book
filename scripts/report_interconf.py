@@ -13,10 +13,11 @@ Validation: every season's inter-conference game count must equal
 import json, os, sys, datetime
 from collections import defaultdict
 from zoneinfo import ZoneInfo
+from season import CURRENT_YEAR
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRE = {"96": 1996, "97": 1997, "99": 1999}
-def yr(c): return 2039 if c == "current" else PRE.get(c, 2000 + int(c))
+def yr(c): return CURRENT_YEAR if c == "current" else PRE.get(c, 2000 + int(c))
 EAST = set(range(1, 16))
 
 games = json.load(open(f"{ROOT}/data/games.json"))["seasons"]

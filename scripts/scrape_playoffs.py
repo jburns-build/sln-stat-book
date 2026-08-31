@@ -5,11 +5,14 @@ The current/top-level season is skipped (its playoffs haven't happened yet).
 Polite ~2 req/sec. Skips files already present.
 """
 import os, time, urllib.request
+from season import archived_codes
 
 UA = "Mozilla/5.0 (research audit; polite)"
 BASE = "https://www.simleaguenirvana.com"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CODES = ["96", "97", "99"] + [f"{i:02d}" for i in range(0, 39)]
+# Every archived season, derived from the mirror. A hardcoded range here
+# goes stale at the next rollover exactly like the roster scraper did.
+CODES = archived_codes()
 
 
 def fetch(url):

@@ -63,6 +63,10 @@ jobs:
           python3 scripts/scrape_fa.py             # current free-agent pool (1 page)
           python3 scripts/build_players_dataset.py
           python3 scripts/build_players_dataset.py --league ndl
+          # Games are simmed daily, so results must refresh on the 4h cadence too,
+          # not once a day with careers. Resumes from the stored day cursor, so a
+          # normal run fetches only the days played since the last one.
+          python3 scripts/scrape_games.py
 
       - name: Career records
         env:
@@ -93,14 +97,19 @@ jobs:
       - name: Persist refreshed career cache
         if: steps.mode.outputs.careers == 'full'
         run: |
-          if ! git diff --quiet -- data/careers.json data/box_agg.json data/ndl_careers.json; then
+          # mirror/sNN/ is the permanent archive: once the league freezes a season
+          # it is fetched here exactly once, and if it is not committed the runner
+          # throws it away and re-fetches it forever. games.json carries the day
+          # cursor, so it must persist for the next run to resume rather than refetch.
+          git add -A data/careers.json data/box_agg.json data/ndl_careers.json \
+                     data/games.json data/season_floor.json mirror
+          if ! git diff --cached --quiet; then
             git config user.name "statbook-bot"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data/careers.json data/box_agg.json data/ndl_careers.json
-            git commit -m "auto: refresh career cache"
+            git commit -m "auto: refresh caches + archived seasons"
             git push
           else
-            echo "career cache unchanged"
+            echo "caches unchanged"
           fi
 
       - name: Build pages
@@ -113,7 +122,7 @@ jobs:
       - name: Sanity check the build before publishing
         run: |
           python3 - <<'PY'
-          import json, sys
+          import json, os, sys
 
           def check(path, league, need_games):
               d = json.load(open(path))
@@ -175,6 +184,31 @@ jobs:
           print(f"[adv] season shooting: {nrows} player-season rows, {len(shoot)} years")
           if nrows < 12000:
               sys.exit("ERROR: season shooting looks incomplete — refusing to publish.")
+          # --- rollover tripwire ---------------------------------------------
+          # This is the check that was missing. The archived-season range used to
+          # be hardcoded; when the league rolled over, a complete 1,189-game
+          # season silently dropped out of the dataset and every count check
+          # above still passed, because the new season refilled the row count.
+          sys.path.insert(0, "scripts")
+          from season import archived_codes, CURRENT_YEAR
+          have = {s["key"] for s in sln["seasons"]}
+          missing = sorted(set(archived_codes()) - have)
+          if missing:
+              sys.exit(f"ERROR: seasons archived by the league but absent from the "
+                       f"dataset: {missing} — refusing to publish.")
+          # Completed seasons only ever accumulate. A build with fewer than the
+          # most we have ever published means one went missing, whatever the cause.
+          fp = "data/season_floor.json"
+          done = sum(1 for s in sln["seasons"] if s.get("played"))
+          floor = json.load(open(fp))["completed_seasons"] if os.path.exists(fp) else 0
+          if done < floor:
+              sys.exit(f"ERROR: {done} completed seasons, down from {floor} — "
+                       f"a season was dropped. Refusing to publish.")
+          if done > floor:
+              json.dump({"completed_seasons": done, "live_year": CURRENT_YEAR},
+                        open(fp, "w"), indent=1)
+              print(f"[rollover] season floor raised {floor} -> {done}")
+          print(f"[rollover] {done} completed seasons, live season {CURRENT_YEAR}")
           print("sanity check passed")
           PY
 
@@ -187,6 +221,28 @@ jobs:
           cp out/teams.html _site/teams/index.html
           cp static/guide.html _site/guide/index.html
           cp SLN_NIRVANA_KNOWLEDGE_BASE.md _site/guide/guide.md   # AI-readable twin
+          # Machine-readable twin of the site: the exact artifacts the MCP server
+          # reads. Publishing them here means a local stat book syncs by fetching
+          # what CI already built (<=4h old) instead of re-scraping the league.
+          mkdir -p _site/api
+          cp out/players_dataset.json out/ndl_players_dataset.json \
+             out/careers_dataset.json out/season_shooting.json out/allstar.json \
+             data/box_agg.json data/games.json _site/api/
+          python3 - <<'MANIFEST'
+          import hashlib, json, os, time
+          d = "_site/api"
+          files = {}
+          for n in sorted(os.listdir(d)):
+              if not n.endswith(".json") or n == "manifest.json":
+                  continue
+              b = open(os.path.join(d, n), "rb").read()
+              files[n] = {"bytes": len(b), "sha256": hashlib.sha256(b).hexdigest()}
+          season = json.load(open("out/players_dataset.json"))["seasons"][0]
+          json.dump({"built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                     "live_season": season["label"], "live_key": season["key"],
+                     "files": files}, open(os.path.join(d, "manifest.json"), "w"), indent=1)
+          print("api manifest:", len(files), "files,", season["label"])
+          MANIFEST
           echo "slnstatbook.com" > _site/CNAME   # keep the custom domain on every deploy
           ls -la _site _site/ndl _site/records _site/teams
 

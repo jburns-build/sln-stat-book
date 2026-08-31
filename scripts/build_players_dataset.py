@@ -12,6 +12,7 @@ Output: out/players_dataset.json  (sln)  /  out/ndl_players_dataset.json  (ndl)
   }
 """
 import os, re, json, glob, sys
+from season import CURRENT_YEAR
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -204,7 +205,7 @@ PRE_YEARS = {"96": 1996, "97": 1997, "99": 1999}
 
 def year_of(code):
     if code == "current":
-        return 2039
+        return CURRENT_YEAR
     if code in PRE_YEARS:
         return PRE_YEARS[code]
     return 2000 + int(code)
@@ -222,7 +223,7 @@ def season_dirs():
             yield (code, str(year_of(code)), year_of(code), d)
     cur = f"{MIRROR}/current/rosters"
     if os.path.isdir(cur):
-        yield ("current", "2039 (in progress)", 2039, cur)
+        yield ("current", f"{CURRENT_YEAR} (in progress)", CURRENT_YEAR, cur)
 
 
 def main():

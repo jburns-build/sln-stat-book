@@ -17,6 +17,7 @@ data/careers.json (committed). Only active players are re-fetched.
 """
 import json, os, re, sys, time, datetime, urllib.request, urllib.error
 from zoneinfo import ZoneInfo
+from season import CURRENT_YEAR
 
 UA = {"User-Agent": "Mozilla/5.0 (research audit; polite)"}
 B = "https://www.simleaguenirvana.com"
@@ -36,12 +37,12 @@ START = time.monotonic()
 
 
 def yr(s):
-    return 2039 if s == "current" else PRE.get(s, 2000 + int(s) if s.isdigit() else 0)
+    return CURRENT_YEAR if s == "current" else PRE.get(s, 2000 + int(s) if s.isdigit() else 0)
 
 
 # inverse of yr(): calendar year -> season code used in URLs
 def code_for_year(y):
-    if y == 2039:
+    if y == CURRENT_YEAR:
         return "current"
     if y in (1996, 1997, 1999):
         return str(y)[2:]

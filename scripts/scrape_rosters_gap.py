@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
-"""Scrape roster pages that aren't mirrored yet:
-   - history seasons 32..37  -> mirror/sNN/rosters/
-   - current (in-progress S38) top-level /rosters/ -> mirror/current/rosters/
+"""Scrape roster pages that aren't mirrored yet.
+
+   - archived seasons  /history/NN/ -> mirror/sNN/rosters/
+   - the live season   /rosters/    -> mirror/current/rosters/
+
+The archived range is DISCOVERED, not hardcoded. It used to be `range(32, 39)`,
+which quietly stopped being true the moment the league rolled over: season 39
+was archived to /history/39/, nothing here fetched it, and the live mirror was
+force-overwritten with season 40 — so a complete season vanished from the
+dataset with every sanity check still passing. Bumping the constant just moves
+the same trap one year out, so we probe upward until the site 404s instead. That
+costs one request per run and cannot go stale.
+
 Polite ~2 req/sec. Skips files already present. Probes roster1..32, stops past 29 on a 404.
 """
 import os, sys, time, urllib.request, urllib.error
@@ -57,11 +67,29 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRE = ["96", "97", "99"]
 for s in PRE:
     scrape_dir(f"{BASE}/history/{s}/rosters", f"{ROOT}/mirror/s{s}/rosters", f"s{s}")
-for ss in range(32, 39):
+# Walk the archive upward until the site has no such season. A season already
+# mirrored is skipped without a request (history never changes); the first
+# missing one ends the walk, so a rollover costs exactly one extra probe.
+# Codes stay below 90 so the walk can't collide with the pre-2000 codes above.
+ss = 32
+while ss < 90:
     s = f"{ss:02d}"
-    scrape_dir(f"{BASE}/history/{s}/rosters", f"{ROOT}/mirror/s{s}/rosters", f"s{s}")
-# current in-progress season (2038) lives at the top level and changes daily -> always refresh
-got = scrape_dir(f"{BASE}/rosters", f"{ROOT}/mirror/current/rosters", "current(2039)", force=True)
+    out_dir = f"{ROOT}/mirror/s{s}/rosters"
+    if os.path.isdir(out_dir) and len(os.listdir(out_dir)) >= MIN_CURRENT_TEAMS:
+        ss += 1
+        continue
+    if fetch(f"{BASE}/history/{s}/rosters/roster1.htm") is None:
+        break                       # not archived yet -> this is the live season
+    time.sleep(0.45)
+    scrape_dir(f"{BASE}/history/{s}/rosters", out_dir, f"s{s}")
+    ss += 1
+
+# The live season lives at the top level and changes daily -> always refresh.
+# Its year is derived only now, after the walk above has archived whatever the
+# league froze since the last run.
+import season                                     # noqa: E402  (needs the fresh mirror)
+live = season.current_year()
+got = scrape_dir(f"{BASE}/rosters", f"{ROOT}/mirror/current/rosters", f"current({live})", force=True)
 # On an intermittently-blocked GitHub runner the live pull can come back empty
 # even though the site is up. Wait and retry the whole batch a couple times
 # before giving up, so a transient blip doesn't fail the build.
@@ -70,7 +98,7 @@ while got < MIN_CURRENT_TEAMS and tries < 2:
     tries += 1
     print(f"  live season short ({got}); waiting 45s and retrying ({tries}/2)…", flush=True)
     time.sleep(45)
-    got = scrape_dir(f"{BASE}/rosters", f"{ROOT}/mirror/current/rosters", "current(2039)", force=True)
+    got = scrape_dir(f"{BASE}/rosters", f"{ROOT}/mirror/current/rosters", f"current({live})", force=True)
 # Fail loudly rather than let a build ship with the live season missing. In CI
 # mirror/current/ starts empty, so a failed scrape would silently drop the whole
 # season; exiting non-zero keeps the last good deploy live instead.

@@ -17,13 +17,17 @@ Output: {"seasons": {code: {"games": [[rnA, sA, rnB, sB], ...], "complete": bool
 Completed seasons never change; the live season resumes from its day cursor.
 """
 import json, os, re, sys, time, urllib.request, urllib.error
+from season import CURRENT_YEAR, archived_codes, code_of
 
 UA = {"User-Agent": "Mozilla/5.0 (research audit; polite)"}
 B = "https://www.simleaguenirvana.com"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = f"{ROOT}/data/games.json"
 SLEEP = 0.3
-SEASONS = ["current", "38"] + [f"{n:02d}" for n in range(37, 0, -1)] + ["99", "97", "00", "05", "96"]
+# Newest first, derived from the mirror so a rollover adds itself. This was a
+# hardcoded list ending at "38"; when the league archived 39 it was simply never
+# fetched, and the completed season sat invisible under the "current" key.
+SEASONS = ["current"] + list(reversed(archived_codes()))
 ONLY = [a.split("=", 1)[1] for a in sys.argv if a.startswith("--only=")]
 if ONLY:
     SEASONS = [s for s in SEASONS if s in ONLY[0].split(",")]
@@ -192,6 +196,28 @@ def season_from_scheds(code, s, players):
     return fetched
 
 
+def promote_finished_season(data):
+    """File a finished live season under its archive code before reusing "current".
+
+    games.json keys the in-progress season "current". At a rollover the league
+    archives it and starts a new one under the same URL, so that key would be
+    reused — resuming the fresh season from the old one's day cursor (120) and
+    treating it as already complete, which silently strands 1,189 real games.
+    Move it to its own code first; "current" then starts empty, as it should.
+    """
+    cur = data["seasons"].get("current")
+    if not cur or not cur.get("complete"):
+        return None
+    code = code_of(CURRENT_YEAR - 1)
+    if data["seasons"].get(code, {}).get("games"):
+        return None                                  # already filed
+    data["seasons"][code] = cur
+    data["seasons"]["current"] = {"games": [], "day": 0, "complete": False}
+    print(f"rollover: filed the finished live season under s{code} "
+          f"({len(cur['games'])} games); current reset for {CURRENT_YEAR}")
+    return code
+
+
 def main():
     players = json.load(open(f"{ROOT}/out/players_dataset.json"))["players"]
     seen = {}
@@ -200,6 +226,7 @@ def main():
         seen.setdefault(n, set()).add(p["rn"])
     GLOBAL_NICK.update({n: next(iter(r)) for n, r in seen.items() if len(r) == 1})
     data = json.load(open(OUT)) if os.path.exists(OUT) else {"seasons": {}}
+    promote_finished_season(data)
     total = 0
     for code in SEASONS:
         s = data["seasons"].setdefault(code, {"games": [], "day": 0, "complete": False})
