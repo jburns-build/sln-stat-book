@@ -33,7 +33,9 @@ OUT = f"{ROOT}/data/box_agg.json"
 SLEEP = 0.35
 # box-era seasons, newest first so the modern leaderboards firm up earliest;
 # "current" leads because it's small and keeps the live season fresh
-SEASONS = ["current"] + [f"{n:02d}" for n in range(38, 0, -1) if n not in (5,)] + ["99"]
+from season import archived_codes
+NO_BOX = {"96", "97", "00", "05"}   # seasons with no per-game box files upstream
+SEASONS = ["current"] + [c for c in reversed(archived_codes()) if c not in NO_BOX]
 ONLY = [a.split("=", 1)[1] for a in sys.argv if a.startswith("--only=")]
 if ONLY:
     SEASONS = [s for s in SEASONS if s in ONLY[0].split(",")]
@@ -104,10 +106,28 @@ def parse_box(html, agg):
     return n
 
 
+def offseason_carryover():
+    """True during the between-seasons window when the top-level pages still
+    serve LAST season's content — scraping "current" then would ingest the old
+    season's games as the new one. build_players_dataset detects and flags it."""
+    p = f"{ROOT}/out/players_dataset.json"
+    if not os.path.exists(p):
+        return False
+    for s in json.load(open(p)).get("seasons", []):
+        if s["key"] == "current":
+            return not s.get("played", True)
+    return False
+
+
 def main():
     data = json.load(open(OUT)) if os.path.exists(OUT) else {"seasons": {}}
+    skip_current = offseason_carryover()
+    if skip_current:
+        print("offseason carryover — skipping the live season this run")
     fetches = 0
     for code in SEASONS:
+        if code == "current" and skip_current:
+            continue
         s = data["seasons"].setdefault(code, {"players": {}, "days_done": 0,
                                               "games": 0, "complete": False})
         if s["complete"] and code != "current":
@@ -128,9 +148,10 @@ def main():
                 return
             h = fetch(f"{base(code)}/boxes/day{d}.htm"); time.sleep(SLEEP); fetches += 1
             if h is None:
-                # day page missing: final for history (odd), not-yet-played for live
                 if code == "current":
-                    break
+                    break                              # not published yet
+                print(f"  !! s{code} day {d}: day page fetch failed — retrying at season end")
+                failed.append(d)
                 continue
             links = re.findall(rf"href=\"({d}-\d+\.html)\"", h)
             if not links:

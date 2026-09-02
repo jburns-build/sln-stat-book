@@ -219,7 +219,12 @@ def promote_finished_season(data):
 
 
 def main():
-    players = json.load(open(f"{ROOT}/out/players_dataset.json"))["players"]
+    _ds = json.load(open(f"{ROOT}/out/players_dataset.json"))
+    players = _ds["players"]
+    skip_current = any(s["key"] == "current" and not s.get("played", True)
+                       for s in _ds.get("seasons", []))
+    if skip_current:
+        print("offseason carryover — skipping the live season this run")
     seen = {}
     for p in players:
         n = "Trail Blazers" if p["team"].endswith("Trail Blazers") else p["team"].split()[-1]
@@ -229,6 +234,8 @@ def main():
     promote_finished_season(data)
     total = 0
     for code in SEASONS:
+        if code == "current" and skip_current:
+            continue
         s = data["seasons"].setdefault(code, {"games": [], "day": 0, "complete": False})
         if s["complete"] and code != "current":
             continue
