@@ -81,6 +81,7 @@ HTML = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,__FAVICON__">
+__POSTHOG__
 <title>SLN Career Records</title>
 <style>
   :root{
@@ -364,6 +365,7 @@ out = (HTML.replace("__DATA__", DATA_JS)
            .replace("__FETCHED__", FETCHED)
            .replace("__WORKER_URL__", WORKER_URL)
            .replace("__FAVICON__", FAVICON)
+           .replace("__POSTHOG__", branding.posthog())
            .replace("__LOGO__", LOGO_INLINE)
            .replace("__SWITCH_CSS__", branding.SWITCH_CSS)
            .replace("__GUIDE__", branding.GUIDE_LINK)

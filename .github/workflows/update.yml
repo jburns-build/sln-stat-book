@@ -219,7 +219,11 @@ jobs:
           cp out/ndl_stats.html _site/ndl/index.html
           cp out/records.html _site/records/index.html
           cp out/teams.html _site/teams/index.html
-          cp static/guide.html _site/guide/index.html
+          # guide gets the shared analytics snippet substituted at stage time
+          python3 -c "
+          import sys; sys.path.insert(0, 'scripts'); import branding
+          h = open('static/guide.html').read()
+          open('_site/guide/index.html', 'w').write(h.replace('<!--__POSTHOG__-->', branding.posthog()))"
           cp SLN_NIRVANA_KNOWLEDGE_BASE.md _site/guide/guide.md   # AI-readable twin
           # Machine-readable twin of the site: the exact artifacts the MCP server
           # reads. Publishing them here means a local stat book syncs by fetching

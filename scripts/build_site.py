@@ -91,6 +91,7 @@ HTML = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,__FAVICON__">
+__POSTHOG__
 <title>__LEAGUE__ Stat Book</title>
 <style>
   :root{
@@ -854,6 +855,7 @@ out = (HTML.replace("__DATA__", DATA_JS)
            .replace("__BUILT__", BUILT)
            .replace("__WORKER_URL__", WORKER_URL)
            .replace("__FAVICON__", FAVICON)
+           .replace("__POSTHOG__", branding.posthog())
            .replace("__LOGO__", LOGO_INLINE)
            .replace("__LEAGUE__", CFG["name"])
            .replace("__SRC_SITE__", CFG["site"])
