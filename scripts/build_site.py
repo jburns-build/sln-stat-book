@@ -51,7 +51,8 @@ if LEAGUE == "sln" and os.path.exists(_sf):
 # hazard only exists for older seasons, which never get the flag.
 _ff = f"{ROOT}/out/fa.json"
 if LEAGUE == "sln" and os.path.exists(_ff):
-    _fa = set(json.load(open(_ff)).get("ids", []))
+    _fad = json.load(open(_ff))
+    _fa = set(_fad.get("ids", []))
     if _fa:
         _newest = {s["key"] for s in
                    sorted(ds["seasons"], key=lambda s: -s["order"])[:2]}
@@ -61,6 +62,33 @@ if LEAGUE == "sln" and os.path.exists(_ff):
                 p["fa"] = 1
                 _n += 1
         print(f"free agents: {len(_fa)} in pool, flagged {_n} rows across {sorted(_newest)}")
+        # During the offseason the "current" view is the league's state-of-play
+        # (rosters + last season's stats carried over) — so unsigned players
+        # belong in it too. Synthesize a current-season row per FA: their
+        # newest real stat line, team "Free Agent" (links to /fa/fa-pos.htm),
+        # no contract, no awards claimed under the new year. Gated on the
+        # carryover flag so in-season views stay strictly real.
+        _cur = next((s for s in ds["seasons"] if s["key"] == "current"), None)
+        if _cur and not _cur.get("played", True):
+            _prev = max((s["key"] for s in ds["seasons"] if s["key"] != "current"),
+                        key=lambda k: next(x["order"] for x in ds["seasons"] if x["key"] == k))
+            _base = {p["id"]: p for p in ds["players"] if p["season"] == _prev}
+            _made = 0
+            for f in _fad.get("players", []):
+                b = _base.get(f["id"])
+                row = dict(b) if b else {"id": f["id"], "name": f.get("name", "?")}
+                row.update({"season": "current", "team": "Free Agent", "rn": 0,
+                            "fa": 1, "awards": [], "sal1": None, "yrs": None})
+                for k in ("pos", "age", "abil"):
+                    if f.get(k):
+                        row[k] = f[k]
+                if not b:
+                    for k in ("g", "mpg", "ppg", "rpg", "apg", "spg", "bpg",
+                              "tpg", "fgp", "ftp", "tpp"):
+                        row.setdefault(k, None)
+                ds["players"].append(row)
+                _made += 1
+            print(f"free agents: synthesized {_made} offseason rows into the current view")
 
 # Cross-league careers (link_leagues.py). The leagues don't share an id space,
 # so these are joined by NAME and guarded on career shape — see that script.
@@ -331,6 +359,7 @@ function playerUrl(p){
   return p.season==='current'
     ? `${SITE}/players/player${p.id}.htm` : `${SITE}/history/${p.season}/players/player${p.id}.htm`; }
 function teamUrl(p){
+  if(p.team==='Free Agent') return `${SITE}/fa/fa-pos.htm`;   // synthesized offseason row
   if(p.hist) return null;                 // archive keeps a nickname, not a roster number
   return p.season==='current'
     ? `${SITE}/rosters/roster${p.rn}.htm` : `${SITE}/history/${p.season}/rosters/roster${p.rn}.htm`; }
@@ -598,7 +627,7 @@ function renderTable(){
       if(c.k==='name'){ html+=`<td class="txt name">${linkOr(playerUrl(p),esc(p.name))}`
         +trophy(p)+xlBadge(p.name)+`<button class="cmp" title="Compare ${esc(p.name)} across years" data-nm="${esc(p.name)}">📊</button></td>`; return; }
       if(c.k==='pos'){ html+=`<td class="txt"><span class="pos">${esc(p.pos||'')}</span></td>`; return; }
-      if(c.k==='team'){ html+=`<td class="txt team">${linkOr(teamUrl(p),esc(p.team),recAttr(p))}${champBadge(p)}${p.fa?'<span class="pos" style="margin-left:5px;background:#fde8cf;color:#8a5a12" title="Currently a free agent">FA</span>':''}</td>`; return; }
+      if(c.k==='team'){ html+=`<td class="txt team">${linkOr(teamUrl(p),esc(p.team),recAttr(p))}${champBadge(p)}${p.fa&&p.team!=='Free Agent'?'<span class="pos" style="margin-left:5px;background:#fde8cf;color:#8a5a12" title="Currently a free agent">FA</span>':''}</td>`; return; }
       const rk = ranks[c.k] && (p.id in ranks[c.k]) ? ranks[c.k][p.id] : null;
       const cls = rk!==null ? ' class="'+tierClass(rk)+'"' : '';
       html+=`<td${cls}>${cellText(p,c)}</td>`;
